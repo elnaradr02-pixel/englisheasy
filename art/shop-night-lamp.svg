@@ -1,0 +1,576 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 800 500" width="800" height="500">
+<defs>
+  <filter id="shopnightlamp-wc" x="-5%" y="-5%" width="110%" height="110%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="2" seed="3" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="4.5" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+  <filter id="shopnightlamp-cloud" x="-15%" y="-25%" width="130%" height="150%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.028" numOctaves="2" seed="7" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="11" xChannelSelector="R" yChannelSelector="G" result="d"/>
+    <feGaussianBlur in="d" stdDeviation="1.5"/>
+  </filter>
+  <filter id="shopnightlamp-far" x="-5%" y="-10%" width="110%" height="120%">
+    <feGaussianBlur stdDeviation="1.4"/>
+  </filter>
+  <filter id="shopnightlamp-glow" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="7"/>
+  </filter>
+  <filter id="shopnightlamp-paper" x="0" y="0" width="100%" height="100%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="11" result="g"/>
+    <feColorMatrix in="g" type="matrix" values="0 0 0 0 0.36  0 0 0 0 0.27  0 0 0 0 0.18  0 0 0 -1.5 1.05"/>
+  </filter>
+  <filter id="shopnightlamp-wash" x="0" y="0" width="100%" height="100%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.009 0.014" numOctaves="3" seed="21" result="w"/>
+    <feColorMatrix in="w" type="matrix" values="0 0 0 0 0.45  0 0 0 0 0.30  0 0 0 0 0.22  2.2 0 0 0 -1.05"/>
+  </filter>
+
+  <linearGradient id="shopnightlamp-sky-night" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#141D45"/><stop offset="0.6" stop-color="#2B3C78"/><stop offset="1" stop-color="#5B4E8C"/>
+  </linearGradient>
+  <linearGradient id="shopnightlamp-sea-night" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#3A4A86"/><stop offset="0.3" stop-color="#1E2C5E"/><stop offset="1" stop-color="#0F1736"/>
+  </linearGradient>
+  <radialGradient id="shopnightlamp-lamp" cx="0.5" cy="0.5" r="0.5">
+    <stop offset="0" stop-color="#FFE7A8" stop-opacity="0.9"/><stop offset="0.4" stop-color="#F6B25A" stop-opacity="0.45"/><stop offset="1" stop-color="#F6B25A" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="shopnightlamp-vignette" cx="0.5" cy="0.45" r="0.78">
+    <stop offset="0.62" stop-color="#3B2A2A" stop-opacity="0"/><stop offset="1" stop-color="#3B2A2A" stop-opacity="0.3"/>
+  </radialGradient>
+  <linearGradient id="shopnightlamp-wood" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#B98456"/><stop offset="1" stop-color="#7A4B32"/>
+  </linearGradient>
+  <linearGradient id="shopnightlamp-cl-shade-night" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#4A5690"/><stop offset="1" stop-color="#2E3A72"/>
+  </linearGradient>
+  <linearGradient id="shopnightlamp-cl-lit" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#FFFFFF"/><stop offset="0.6" stop-color="#FFF7EA"/><stop offset="1" stop-color="#F9E2C6"/>
+  </linearGradient>
+
+  <!-- scene-specific washes -->
+  <linearGradient id="shopnightlamp-wall" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#141D45"/><stop offset="0.55" stop-color="#25336A"/><stop offset="1" stop-color="#34336A"/>
+  </linearGradient>
+  <radialGradient id="shopnightlamp-spill" cx="0.5" cy="0.5" r="0.5">
+    <stop offset="0" stop-color="#F6B25A" stop-opacity="0.42"/><stop offset="0.45" stop-color="#E8B54A" stop-opacity="0.16"/><stop offset="1" stop-color="#E8B54A" stop-opacity="0"/>
+  </radialGradient>
+  <linearGradient id="shopnightlamp-cone" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#FFE6A8" stop-opacity="0.32"/><stop offset="1" stop-color="#FFE6A8" stop-opacity="0"/>
+  </linearGradient>
+  <linearGradient id="shopnightlamp-top" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#6E4630"/><stop offset="1" stop-color="#9A6A46"/>
+  </linearGradient>
+  <linearGradient id="shopnightlamp-front" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#6A4230"/><stop offset="1" stop-color="#3A2A3A"/>
+  </linearGradient>
+  <linearGradient id="shopnightlamp-page" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#FFF4CC"/><stop offset="1" stop-color="#F4C28A"/>
+  </linearGradient>
+  <linearGradient id="shopnightlamp-hill" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#3E5488"/><stop offset="0.5" stop-color="#2A3A6E"/><stop offset="1" stop-color="#1A2552"/>
+  </linearGradient>
+  <clipPath id="shopnightlamp-win"><circle cx="600" cy="165" r="117"/></clipPath>
+
+  <g id="shopnightlamp-cu-low">
+    <circle cx="20" cy="40" r="16"/><circle cx="50" cy="30" r="24"/><circle cx="88" cy="24" r="28"/>
+    <circle cx="126" cy="32" r="22"/><circle cx="156" cy="40" r="15"/>
+    <ellipse cx="88" cy="50" rx="86" ry="8"/>
+  </g>
+</defs>
+
+<!-- ============ BACK WALL ============ -->
+<rect width="800" height="500" fill="url(#shopnightlamp-wall)"/>
+<circle cx="330" cy="290" r="340" fill="url(#shopnightlamp-spill)"/>
+
+<g filter="url(#shopnightlamp-wc)">
+  <!-- vertical boards -->
+  <g fill="#1B2556" opacity="0.35">
+    <rect x="300" y="20" width="44" height="330"/><rect x="388" y="20" width="44" height="330"/>
+    <rect x="740" y="20" width="44" height="330"/>
+  </g>
+  <g stroke="#141D45" stroke-width="2" opacity="0.45">
+    <path d="M344 22V350M388 22V350M432 22V350M476 22V60M740 22V350M784 22V350"/>
+  </g>
+  <!-- warm wall bloom streaks -->
+  <g stroke="#F9CD92" stroke-width="2" stroke-linecap="round" opacity="0.18" fill="none">
+    <path d="M352 150q2 60 0 130M398 170q2 50 -1 110"/>
+  </g>
+  <!-- wainscot rail -->
+  <rect x="0" y="300" width="800" height="8" fill="#4A3328"/>
+  <rect x="0" y="300" width="800" height="2" fill="#F4C28A" opacity="0.25"/>
+  <rect x="0" y="308" width="800" height="42" fill="#2A2A55"/>
+  <g stroke="#141D45" stroke-width="2" opacity="0.5"><path d="M60 308V350M140 308V350M220 308V350M300 308V350M380 308V350M460 308V350M540 308V350M620 308V350M700 308V350M780 308V350"/></g>
+
+  <!-- ceiling beam -->
+  <rect x="0" y="0" width="800" height="22" fill="#3E2C2C"/>
+  <rect x="0" y="18" width="800" height="5" fill="#5A3E30"/>
+  <rect x="200" y="20" width="300" height="2" fill="#F4C28A" opacity="0.35"/>
+
+  <!-- wall clock -->
+  <circle cx="392" cy="106" r="27" fill="#7A4B32"/>
+  <circle cx="392" cy="106" r="22" fill="#F7E9D2"/>
+  <circle cx="392" cy="106" r="22" fill="#2B3C78" opacity="0.22"/>
+  <path d="M371 112a22 22 0 0 0 30 15" fill="none" stroke="#FFE6A8" stroke-width="2" opacity="0.7" stroke-linecap="round"/>
+  <g stroke="#4A3B3B" stroke-width="2" stroke-linecap="round"><path d="M392 106V91M392 106l9 5"/></g>
+  <g fill="#4A3B3B"><circle cx="392" cy="87" r="1.3"/><circle cx="411" cy="106" r="1.3"/><circle cx="392" cy="125" r="1.3"/><circle cx="373" cy="106" r="1.3"/></g>
+  <path d="M368 96a27 27 0 0 1 14 -16" fill="none" stroke="#B98456" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- hook with apron + duster cloth (right wall) -->
+  <circle cx="768" cy="92" r="3" fill="#E8B54A"/>
+  <path d="M768 95v104" stroke="#B98456" stroke-width="5" stroke-linecap="round"/>
+  <path d="M767 100v96" stroke="#F4C28A" stroke-width="1.4" opacity="0.6"/>
+  <path d="M768 92q-6 -6 0 -10q6 4 0 10" fill="none" stroke="#7A4B32" stroke-width="1.5"/>
+  <path d="M760 198h16l12 48q-20 6 -40 0z" fill="#E8B54A"/>
+  <path d="M768 198h8l12 48q-10 3 -20 3z" fill="#6E6A8A" opacity="0.35"/>
+  <rect x="758" y="200" width="20" height="6" rx="2" fill="#D2412F"/>
+  <g stroke="#B98456" stroke-width="1.2" opacity="0.8"><path d="M758 214l-6 30M764 214l-3 32M770 214l2 32M776 214l6 30"/></g>
+  <path d="M760 208l-10 36" stroke="#FFE6A8" stroke-width="1.5" opacity="0.5" stroke-linecap="round"/>
+</g>
+
+<!-- fairy lights on the beam -->
+<path d="M0 26Q100 52 200 30Q300 54 400 30Q500 54 600 30Q700 52 800 28" fill="none" stroke="#3B3A4A" stroke-width="1.2" opacity="0.8"/>
+<g fill="#FFE3A0">
+  <circle cx="40" cy="36" r="3" opacity="0.9"/><circle cx="100" cy="40" r="3"/><circle cx="160" cy="36" r="3" opacity="0.8"/>
+  <circle cx="250" cy="40" r="3" opacity="0.9"/><circle cx="300" cy="42" r="3"/><circle cx="350" cy="39" r="3" opacity="0.85"/>
+  <circle cx="450" cy="39" r="3" opacity="0.9"/><circle cx="500" cy="42" r="3"/><circle cx="550" cy="39" r="3" opacity="0.8"/>
+  <circle cx="650" cy="39" r="3" opacity="0.9"/><circle cx="700" cy="40" r="3"/><circle cx="755" cy="35" r="3" opacity="0.85"/>
+</g>
+<g fill="#F6B25A" opacity="0.22">
+  <circle cx="40" cy="36" r="9"/><circle cx="100" cy="40" r="9"/><circle cx="160" cy="36" r="9"/><circle cx="250" cy="40" r="9"/>
+  <circle cx="300" cy="42" r="10"/><circle cx="350" cy="39" r="9"/><circle cx="450" cy="39" r="9"/><circle cx="500" cy="42" r="9"/>
+  <circle cx="550" cy="39" r="9"/><circle cx="650" cy="39" r="9"/><circle cx="700" cy="40" r="9"/><circle cx="755" cy="35" r="9"/>
+</g>
+<circle cx="300" cy="42" r="12" fill="#FFD58A" opacity="0.55" filter="url(#shopnightlamp-glow)"/>
+<circle cx="100" cy="40" r="11" fill="#FFD58A" opacity="0.45" filter="url(#shopnightlamp-glow)"/>
+
+<!-- ============ SHELVES (left) ============ -->
+<g filter="url(#shopnightlamp-wc)">
+  <!-- shelf 1 items: jars -->
+  <rect x="14" y="70" width="26" height="42" rx="6" fill="#CDEBD9" opacity="0.75"/>
+  <rect x="14" y="66" width="26" height="7" rx="2" fill="#B98456"/>
+  <rect x="46" y="80" width="22" height="32" rx="5" fill="#F4C9A8" opacity="0.8"/>
+  <rect x="46" y="76" width="22" height="6" rx="2" fill="#B98456"/>
+  <rect x="74" y="74" width="24" height="38" rx="6" fill="#BFDDEE" opacity="0.75"/>
+  <rect x="74" y="70" width="24" height="6" rx="2" fill="#7A4B32"/>
+  <g fill="#E8B54A" opacity="0.7"><circle cx="24" cy="98" r="3"/><circle cx="31" cy="92" r="2.5"/><circle cx="57" cy="100" r="2.5"/><circle cx="84" cy="96" r="3"/></g>
+  <!-- shelf 1 books upright -->
+  <rect x="112" y="66" width="12" height="46" fill="#C9573C"/><rect x="124" y="72" width="10" height="40" fill="#4A6C8C"/>
+  <rect x="134" y="62" width="14" height="50" fill="#3E7A4E"/><rect x="148" y="70" width="11" height="42" fill="#B98456"/>
+  <rect x="159" y="66" width="13" height="46" fill="#4A6C8C"/>
+  <path d="M174 112l18 -42l10 4l-18 42z" fill="#E8B54A"/>
+  <g fill="#E8B54A" opacity="0.8"><rect x="114" y="80" width="8" height="2"/><rect x="136" y="76" width="10" height="2"/><rect x="161" y="80" width="9" height="2"/></g>
+  <!-- small sailing model -->
+  <path d="M220 104h46l-8 8h-30z" fill="#7A4B32"/><path d="M243 104V66l18 34z" fill="#F7E9D2"/><path d="M241 104V74l-14 26z" fill="#F4C9A8"/>
+  <path d="M243 104V66" stroke="#4A3B3B" stroke-width="1.5"/>
+
+  <!-- shelf 2 items: leaning books, globe, tins -->
+  <rect x="10" y="150" width="14" height="46" fill="#4A6C8C"/><rect x="24" y="156" width="12" height="40" fill="#C9573C"/>
+  <path d="M36 196l12 -42l11 3l-12 42z" fill="#6BAA58"/>
+  <circle cx="98" cy="168" r="20" fill="#5BAEBB"/><path d="M84 160q10 -6 14 4t14 2M86 176q8 -4 18 2" stroke="#A6D477" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <path d="M78 168a20 20 0 0 1 40 0" fill="none" stroke="#E8B54A" stroke-width="2"/>
+  <rect x="94" y="188" width="8" height="8" fill="#B98456"/>
+  <rect x="134" y="168" width="24" height="28" rx="3" fill="#D2412F" opacity="0.85"/><rect x="134" y="168" width="24" height="5" fill="#E8B54A"/>
+  <rect x="162" y="174" width="22" height="22" rx="3" fill="#BFDDEE" opacity="0.8"/><rect x="162" y="174" width="22" height="4" fill="#E8B54A"/>
+  <!-- feather duster in a jar -->
+  <rect x="204" y="166" width="22" height="30" rx="5" fill="#CDEBD9" opacity="0.7"/>
+  <path d="M215 166V130" stroke="#7A4B32" stroke-width="3"/>
+  <g fill="#F4C9A8"><ellipse cx="210" cy="124" rx="9" ry="14" transform="rotate(-20 210 124)"/><ellipse cx="222" cy="122" rx="9" ry="15" transform="rotate(18 222 122)"/><ellipse cx="216" cy="116" rx="8" ry="13"/></g>
+  <g fill="#C9573C" opacity="0.5"><ellipse cx="208" cy="128" rx="5" ry="9" transform="rotate(-20 208 128)"/></g>
+  <!-- stack of cleaned plates -->
+  <g fill="#FFF7EA"><ellipse cx="252" cy="192" rx="20" ry="4"/><ellipse cx="252" cy="187" rx="20" ry="4"/><ellipse cx="252" cy="182" rx="20" ry="4"/></g>
+  <g fill="#5BAEBB" opacity="0.5"><ellipse cx="252" cy="182" rx="12" ry="2"/></g>
+
+  <!-- shelf 3: dust sheet over boxes (not yet cleaned) + bucket -->
+  <path d="M8 280q-2 -44 22 -52q40 -14 80 -4q22 8 24 56z" fill="#A7AECB"/>
+  <path d="M8 280q-2 -44 22 -52q14 -4 26 -4q-18 20 -12 56z" fill="#6E6A8A" opacity="0.4"/>
+  <path d="M60 230q10 22 6 50M96 226q-6 30 0 54" stroke="#6E6A8A" stroke-width="2" fill="none" opacity="0.5"/>
+  <path d="M110 232q20 10 22 46" stroke="#FFF7EA" stroke-width="2.5" fill="none" opacity="0.5" stroke-linecap="round"/>
+  <path d="M160 248h40l-4 32h-32z" fill="#4A6C8C"/><path d="M160 248h40l-1 6h-38z" fill="#BFDDEE"/>
+  <path d="M164 248q16 -24 32 0" fill="none" stroke="#3F5560" stroke-width="2"/>
+  <path d="M168 250q8 -14 20 -6l2 8z" fill="#F4C9A8"/>
+  <path d="M188 254l8 26" stroke="#FFF7EA" stroke-width="2" opacity="0.4" stroke-linecap="round"/>
+  <rect x="216" y="236" width="40" height="44" fill="#B98456"/><rect x="216" y="236" width="40" height="44" fill="#6E6A8A" opacity="0.25"/>
+  <path d="M216 236l-10 -10h40l10 10z" fill="#CFA06E"/>
+  <path d="M248 236l8 -14" stroke="#B98456" stroke-width="5"/>
+
+  <!-- shelf boards -->
+  <g fill="url(#shopnightlamp-wood)">
+    <rect x="0" y="112" width="290" height="9"/><rect x="0" y="196" width="280" height="9"/><rect x="0" y="280" width="300" height="9"/>
+  </g>
+  <g fill="#F4C28A" opacity="0.55"><rect x="120" y="112" width="170" height="2"/><rect x="110" y="196" width="170" height="2"/><rect x="100" y="280" width="200" height="2"/></g>
+  <g fill="#141D45" opacity="0.3"><rect x="0" y="121" width="290" height="10"/><rect x="0" y="205" width="280" height="10"/><rect x="0" y="289" width="300" height="10"/></g>
+  <g fill="#7A4B32"><path d="M260 121h12l-12 18z"/><path d="M250 205h12l-12 18z"/><path d="M270 289h12l-12 11z"/></g>
+  <!-- cool shadow wash away from lamp (left) -->
+  <rect x="0" y="40" width="70" height="260" fill="#141D45" opacity="0.28"/>
+  <!-- warm rim on lamp side of objects -->
+  <g stroke="#FFE6A8" stroke-width="1.6" stroke-linecap="round" opacity="0.55" fill="none">
+    <path d="M171 68v42M157 72v38M117 84q7 -4 14 0"/>
+    <path d="M115 160a20 20 0 0 1 -2 18M183 176v18M224 168v24M270 188q2 -4 0 -6"/>
+    <path d="M198 252l-3 26M254 238v40"/>
+  </g>
+</g>
+
+<!-- ============ ROUND WINDOW: NIGHT BAY ============ -->
+<g clip-path="url(#shopnightlamp-win)">
+  <rect x="480" y="45" width="240" height="240" fill="url(#shopnightlamp-sky-night)"/>
+  <!-- stars -->
+  <g fill="#FFF7EA">
+    <circle cx="500" cy="140" r="1" opacity="0.6"/><circle cx="518" cy="80" r="1.3"/><circle cx="586" cy="66" r="1" opacity="0.7"/>
+    <circle cx="612" cy="92" r="1.6"/><circle cx="640" cy="62" r="1" opacity="0.8"/><circle cx="668" cy="84" r="1.2" opacity="0.6"/>
+    <circle cx="694" cy="118" r="1.5"/><circle cx="706" cy="150" r="1" opacity="0.5"/><circle cx="626" cy="132" r="1" opacity="0.6"/>
+    <circle cx="580" cy="128" r="1.2" opacity="0.8"/><circle cx="530" cy="168" r="1" opacity="0.5"/><circle cx="660" cy="120" r="0.9" opacity="0.7"/>
+    <circle cx="648" cy="150" r="1.1" opacity="0.5"/><circle cx="560" cy="58" r="1" opacity="0.6"/><circle cx="502" cy="108" r="1.1" opacity="0.8"/>
+    <circle cx="684" cy="66" r="0.9" opacity="0.5"/><circle cx="614" cy="176" r="0.9" opacity="0.45"/><circle cx="690" cy="174" r="1" opacity="0.5"/>
+  </g>
+  <path d="M654 102v8M650 106h8" stroke="#FFF7EA" stroke-width="1" stroke-linecap="round"/>
+  <path d="M528 120v6M525 123h6" stroke="#FFF7EA" stroke-width="0.9" stroke-linecap="round" opacity="0.8"/>
+  <!-- moon -->
+  <circle cx="546" cy="98" r="30" fill="#FFE6A8" opacity="0.4" filter="url(#shopnightlamp-glow)"/>
+  <path d="M552 76a22 22 0 1 0 6 42a18 18 0 1 1 -6 -42z" fill="#FFF3D0"/>
+  <path d="M541 82a17 17 0 0 0 2 30" fill="none" stroke="#F4C28A" stroke-width="2" opacity="0.5" stroke-linecap="round"/>
+
+  <!-- silver night clouds -->
+  <g filter="url(#shopnightlamp-cloud)">
+    <g transform="translate(600 112) scale(0.62 0.5)">
+      <use href="#shopnightlamp-cu-low" xlink:href="#shopnightlamp-cu-low" fill="url(#shopnightlamp-cl-shade-night)"/>
+      <use href="#shopnightlamp-cu-low" xlink:href="#shopnightlamp-cu-low" fill="url(#shopnightlamp-cl-lit)" opacity="0.35" transform="translate(-9 -9)"/>
+    </g>
+    <g transform="translate(470 170) scale(0.75 0.42)">
+      <use href="#shopnightlamp-cu-low" xlink:href="#shopnightlamp-cu-low" fill="url(#shopnightlamp-cl-shade-night)"/>
+      <use href="#shopnightlamp-cu-low" xlink:href="#shopnightlamp-cu-low" fill="url(#shopnightlamp-cl-lit)" opacity="0.3" transform="translate(-9 -9)"/>
+    </g>
+  </g>
+
+  <!-- distant land, hill, sea -->
+  <g filter="url(#shopnightlamp-wc)">
+    <path d="M470 226q30 -10 60 -6q20 -4 40 4h-100z" fill="#4A5690" opacity="0.8"/>
+    <rect x="470" y="226" width="260" height="70" fill="url(#shopnightlamp-sea-night)"/>
+    <path d="M600 228q16 -36 40 -40q30 -4 46 8q24 16 40 32z" fill="url(#shopnightlamp-hill)"/>
+    <path d="M606 224q14 -30 36 -35q14 -2 22 -2" fill="none" stroke="#A7AECB" stroke-width="2.4" opacity="0.7" stroke-linecap="round"/><path d="M612 226q14 -24 30 -30" fill="none" stroke="#5B6FA8" stroke-width="6" opacity="0.45" stroke-linecap="round"/>
+    <path d="M620 228q30 -14 60 -6" fill="none" stroke="#3E7A4E" stroke-width="3" opacity="0.35"/>
+    <!-- dark trees on hill flank (not on skyline) -->
+    <g fill="#141D45" opacity="0.6"><circle cx="652" cy="214" r="5"/><circle cx="676" cy="210" r="4"/><circle cx="700" cy="220" r="5"/></g>
+    <rect x="470" y="226" width="260" height="70" fill="#DCEBEF" opacity="0.05"/>
+  </g>
+  <!-- tiny light on top of the hill -->
+  <circle cx="666" cy="186" r="7" fill="#FFD58A" opacity="0.8" filter="url(#shopnightlamp-glow)"/>
+  <rect x="664" y="184" width="4" height="4" fill="#FFE3A0"/>
+  <path d="M666 182v-4" stroke="#3B3A4A" stroke-width="1"/>
+
+  <!-- reflections -->
+  <g filter="url(#shopnightlamp-far)">
+    <g fill="#FFE6A8" opacity="0.5">
+      <rect x="541" y="232" width="10" height="4" rx="2"/><rect x="538" y="240" width="16" height="3" rx="1.5"/>
+      <rect x="543" y="248" width="8" height="3" rx="1.5"/><rect x="536" y="256" width="20" height="3" rx="1.5"/>
+      <rect x="542" y="266" width="10" height="3" rx="1.5"/>
+    </g>
+    <rect x="664" y="232" width="4" height="14" fill="#FFE3A0" opacity="0.5"/>
+    <path d="M610 230q50 14 116 0v8q-60 10 -116 -4z" fill="#141D45" opacity="0.4"/>
+  </g>
+  <g stroke="#EAF7F2" stroke-width="1.2" fill="none" stroke-linecap="round" opacity="0.35">
+    <path d="M500 244q10 -2 20 0M580 252q10 -2 22 0M620 270q10 -2 20 0M510 274q8 -2 16 0"/>
+  </g>
+  <g stroke="#0F1736" stroke-width="1.4" fill="none" stroke-linecap="round" opacity="0.4">
+    <path d="M560 260q12 3 24 0M650 256q12 3 26 0"/>
+  </g>
+  <g fill="#FFF7EA"><ellipse cx="548" cy="236" rx="4" ry="1"/><ellipse cx="545" cy="252" rx="3" ry="1"/></g>
+
+  <!-- glass: reflections of the lamp & a soft glint -->
+  <ellipse cx="520" cy="250" rx="40" ry="26" fill="#F6B25A" opacity="0.1"/>
+  <path d="M640 60l-70 200" stroke="#FFF7EA" stroke-width="16" opacity="0.04"/>
+  <path d="M664 64l-60 170" stroke="#FFF7EA" stroke-width="5" opacity="0.05"/>
+</g>
+
+<!-- window frame, sill, plant, boxes -->
+<g filter="url(#shopnightlamp-wc)">
+  <circle cx="600" cy="165" r="124" fill="none" stroke="#5A3A2C" stroke-width="16"/>
+  <circle cx="600" cy="165" r="117" fill="none" stroke="#3E2C2C" stroke-width="3"/>
+  <path d="M486 196a118 118 0 0 0 58 74" fill="none" stroke="#F4C28A" stroke-width="3" opacity="0.6" stroke-linecap="round"/>
+  <path d="M478 176a124 124 0 0 0 40 92" fill="none" stroke="#F9CD92" stroke-width="2" opacity="0.4" stroke-linecap="round"/>
+  <path d="M640 48a124 124 0 0 1 80 80" fill="none" stroke="#8FA0D0" stroke-width="2" opacity="0.35" stroke-linecap="round"/>
+  <g clip-path="url(#shopnightlamp-win)">
+    <rect x="597" y="45" width="6" height="240" fill="#4A3328"/>
+    <rect x="480" y="162" width="240" height="6" fill="#4A3328"/>
+    <rect x="597" y="168" width="2" height="120" fill="#F4C28A" opacity="0.4"/>
+  </g>
+  <circle cx="600" cy="165" r="6" fill="#5A3A2C"/>
+  <!-- sill -->
+  <rect x="468" y="290" width="266" height="10" rx="2" fill="#7A4B32"/>
+  <rect x="468" y="290" width="160" height="2" fill="#F4C28A" opacity="0.6"/>
+  <rect x="470" y="300" width="262" height="6" fill="#141D45" opacity="0.3"/>
+  <!-- small pot plant on sill -->
+  <path d="M690 272h24l-3 18h-18z" fill="#C9573C"/><path d="M690 272h24l-1 4h-22z" fill="#F6B083"/>
+  <g fill="#3E7A4E"><ellipse cx="696" cy="262" rx="5" ry="11" transform="rotate(-25 696 262)"/><ellipse cx="708" cy="260" rx="5" ry="12" transform="rotate(20 708 260)"/><ellipse cx="702" cy="256" rx="4" ry="12"/></g>
+  <g fill="#6BAA58"><ellipse cx="694" cy="262" rx="2" ry="7" transform="rotate(-25 694 262)"/><ellipse cx="700" cy="254" rx="2" ry="7"/></g>
+  <!-- little brass candle holder on sill (unlit) -->
+  <ellipse cx="492" cy="289" rx="10" ry="3" fill="#E8B54A"/><rect x="489" y="272" width="6" height="16" fill="#F7E9D2"/>
+  <!-- stacked boxes in right corner (half-sorted) -->
+  <rect x="736" y="262" width="64" height="40" fill="#B98456"/>
+  <rect x="742" y="232" width="56" height="32" fill="#CFA06E"/>
+  <path d="M742 232l-8 -12h40l8 12z" fill="#E0B47E"/><path d="M798 232l4 -14" stroke="#B98456" stroke-width="5"/>
+  <path d="M752 228l6 -18l10 2l-4 18z" fill="#4A6C8C"/><path d="M766 226q8 -16 18 -6l-2 8z" fill="#FFF7EA"/>
+  <rect x="736" y="262" width="64" height="40" fill="#6E6A8A" opacity="0.25"/>
+  <path d="M736 262h64" stroke="#F4C28A" stroke-width="1.5" opacity="0.4"/>
+  <rect x="748" y="274" width="26" height="12" fill="#F7E9D2" opacity="0.7"/>
+</g>
+
+<!-- hanging plant from the beam -->
+<g filter="url(#shopnightlamp-wc)">
+  <path d="M452 22l-10 46M452 22l10 46M452 22v46" stroke="#B98456" stroke-width="1" opacity="0.8"/>
+  <path d="M436 68h32l-4 16h-24z" fill="#C9573C"/><path d="M436 68h32l-1 4h-30z" fill="#F6B083"/>
+  <path d="M460 70l4 14h-4z" fill="#2B3C78" opacity="0.4"/>
+  <g fill="#3E7A4E">
+    <ellipse cx="434" cy="88" rx="5" ry="9" transform="rotate(30 434 88)"/><ellipse cx="430" cy="104" rx="4" ry="8" transform="rotate(10 430 104)"/>
+    <ellipse cx="432" cy="120" rx="4" ry="7"/><ellipse cx="470" cy="90" rx="5" ry="9" transform="rotate(-30 470 90)"/>
+    <ellipse cx="472" cy="108" rx="4" ry="8" transform="rotate(-8 472 108)"/><ellipse cx="452" cy="92" rx="4" ry="8"/>
+    <ellipse cx="450" cy="108" rx="3.5" ry="7"/>
+  </g>
+  <g fill="#6BAA58"><ellipse cx="436" cy="86" rx="2" ry="5" transform="rotate(30 436 86)"/><ellipse cx="454" cy="90" rx="2" ry="5"/><ellipse cx="432" cy="102" rx="2" ry="4"/></g>
+  <path d="M430 80q-4 30 2 44M472 80q2 20 0 34" stroke="#3E7A4E" stroke-width="1.2" fill="none"/>
+</g>
+
+<!-- ============ LAMP LIGHT CONE ============ -->
+<path d="M284 280L364 292L540 404L220 414Z" fill="url(#shopnightlamp-cone)" filter="url(#shopnightlamp-glow)"/>
+
+<g fill="#FFF4CC">
+  <circle cx="300" cy="310" r="1" opacity="0.6"/><circle cx="330" cy="330" r="0.8" opacity="0.5"/><circle cx="352" cy="312" r="1.1" opacity="0.5"/>
+  <circle cx="290" cy="350" r="0.9" opacity="0.5"/><circle cx="372" cy="340" r="0.8" opacity="0.6"/><circle cx="318" cy="366" r="1" opacity="0.4"/>
+  <circle cx="262" cy="336" r="0.8" opacity="0.4"/><circle cx="344" cy="296" r="0.9" opacity="0.5"/>
+</g>
+<!-- ============ COUNTER ============ -->
+<g filter="url(#shopnightlamp-wc)">
+  <rect x="0" y="346" width="800" height="96" fill="url(#shopnightlamp-top)"/>
+  <!-- plank tones on the top -->
+  <g fill="#7A4B32" opacity="0.5"><rect x="0" y="360" width="800" height="12"/><rect x="0" y="396" width="800" height="14"/></g>
+  <g stroke="#4A3328" stroke-width="1.2" opacity="0.45"><path d="M0 360H800M0 372H800M0 384H800M0 396H800M0 410H800M0 425H800"/></g>
+  <!-- warm pool of lamplight -->
+  <ellipse cx="400" cy="398" rx="230" ry="48" fill="url(#shopnightlamp-lamp)" opacity="0.85"/>
+  <g stroke="#FFE6A8" stroke-width="1.6" stroke-linecap="round" opacity="0.4">
+    <path d="M220 372h40M300 410h60M470 388h50M560 422h30"/>
+  </g>
+  <!-- back edge -->
+  <rect x="0" y="344" width="800" height="4" fill="#4A3328"/>
+  <!-- front lip -->
+  <rect x="0" y="440" width="800" height="10" fill="#B98456"/>
+  <rect x="150" y="440" width="460" height="2" fill="#FFE6A8" opacity="0.6"/>
+  <!-- front face panels -->
+  <rect x="0" y="450" width="800" height="50" fill="url(#shopnightlamp-front)"/>
+  <g fill="#7A4B32" opacity="0.5">
+    <rect x="20" y="458" width="140" height="42" rx="3"/><rect x="180" y="458" width="140" height="42" rx="3"/>
+    <rect x="340" y="458" width="140" height="42" rx="3"/><rect x="500" y="458" width="140" height="42" rx="3"/>
+    <rect x="660" y="458" width="140" height="42" rx="3"/>
+  </g>
+  <g stroke="#F4C28A" stroke-width="1.4" opacity="0.3"><path d="M180 459h140M340 459h140M500 459h120"/></g>
+  <rect x="0" y="450" width="800" height="8" fill="#141D45" opacity="0.3"/>
+  <!-- cool falloff at the ends of the counter -->
+  <rect x="0" y="346" width="120" height="154" fill="#141D45" opacity="0.18"/>
+  <rect x="700" y="346" width="100" height="154" fill="#141D45" opacity="0.2"/>
+</g>
+
+<!-- ============ CAT ON NOTEBOOK PILE ============ -->
+<g filter="url(#shopnightlamp-wc)">
+  <ellipse cx="140" cy="410" rx="92" ry="9" fill="#141D45" opacity="0.35"/>
+  <!-- notebooks: spines face front, page edges on the lamp side -->
+  <rect x="58" y="388" width="160" height="18" rx="2" fill="#4A6C8C"/>
+  <rect x="200" y="390" width="18" height="14" fill="#F7E9D2"/>
+  <rect x="70" y="372" width="140" height="16" rx="2" fill="#B98456"/>
+  <rect x="196" y="374" width="14" height="12" fill="#FFF4CC"/>
+  <rect x="62" y="356" width="150" height="16" rx="2" fill="#3E7A4E"/>
+  <rect x="198" y="358" width="14" height="12" fill="#F7E9D2"/>
+  <rect x="76" y="342" width="128" height="14" rx="2" fill="#F4C9A8"/>
+  <rect x="192" y="344" width="12" height="10" fill="#FFF4CC"/>
+  <g fill="#E8B54A" opacity="0.85"><rect x="80" y="394" width="30" height="3"/><rect x="92" y="378" width="24" height="3"/><rect x="84" y="362" width="28" height="3"/><rect x="96" y="347" width="22" height="2.5"/></g>
+  <g fill="#141D45" opacity="0.35"><rect x="58" y="388" width="40" height="18"/><rect x="70" y="372" width="34" height="16"/><rect x="62" y="356" width="36" height="16"/><rect x="76" y="342" width="30" height="14"/></g>
+  <g stroke="#FFE6A8" stroke-width="1.3" opacity="0.6"><path d="M218 390v15M210 374v13M212 358v13M204 344v11"/></g>
+
+  <!-- cat: curled loaf, head toward the lamp -->
+  <path d="M74 344q-4 -40 42 -48q52 -6 76 18q8 12 6 30z" fill="#7E8494"/>
+  <!-- tail wraps along the front -->
+  <path d="M80 344q40 10 100 -2q14 -2 16 -10q4 8 -8 16q-50 14 -112 4z" fill="#6E7384"/>
+  <path d="M100 346q40 6 80 -2" stroke="#A9AEBB" stroke-width="2" fill="none" opacity="0.6" stroke-linecap="round"/>
+  <!-- head -->
+  <ellipse cx="188" cy="318" rx="24" ry="20" fill="#7E8494"/>
+  <path d="M170 306l-2 -22l16 12z" fill="#7E8494"/>
+  <path d="M196 302l12 -18l4 22z" fill="#7E8494"/>
+  <path d="M172 302l-1 -12l8 7z" fill="#F4C9A8" opacity="0.8"/>
+  <path d="M200 300l7 -10l2 11z" fill="#F4C9A8" opacity="0.8"/>
+  <!-- white bib -->
+  <path d="M180 334q8 6 18 2q2 8 -9 12q-9 -2 -9 -14z" fill="#FFF7EA"/><path d="M186 342q3 2 6 0" stroke="#A9AEBB" stroke-width="1" fill="none"/>
+  <!-- lamp-side highlights -->
+  <path d="M140 302q26 0 34 6" stroke="#A9AEBB" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.8"/>
+  <path d="M209 312q3 6 1 12" stroke="#FFE6A8" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.7"/>
+  <path d="M140 296q22 0 32 8" stroke="#FFE6A8" stroke-width="1.8" fill="none" stroke-linecap="round" opacity="0.6"/><path d="M206 290l4 -4" stroke="#FFE6A8" stroke-width="1.6" stroke-linecap="round" opacity="0.6"/>
+  <!-- cool shade on far side -->
+  <path d="M74 344q-4 -40 42 -48q-20 14 -16 48z" fill="#2B3C78" opacity="0.35"/>
+  <!-- stripes -->
+  <g stroke="#5E6375" stroke-width="3" stroke-linecap="round" opacity="0.55" fill="none"><path d="M118 300q4 8 2 16M136 298q4 8 2 14M100 308q4 6 2 14"/></g>
+  <!-- face: one eye closed, one eye open -->
+  <path d="M176 316q5 3 10 0" stroke="#3B3A4A" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+  <ellipse cx="200" cy="315" rx="4.2" ry="3.4" fill="#E8B54A"/>
+  <ellipse cx="200.4" cy="315" rx="1.2" ry="3" fill="#3B3A4A"/>
+  <circle cx="201.6" cy="313.8" r="0.9" fill="#FFF7EA"/>
+  <path d="M190 322l2 2l2 -2z" fill="#D9A0A0"/>
+  <g stroke="#FFF7EA" stroke-width="0.7" opacity="0.6"><path d="M198 325l14 -1M198 327l13 3M182 325l-12 -1"/></g>
+</g>
+
+<!-- ============ LAMP + NOTEBOOK + TIN + KEY ============ -->
+<g filter="url(#shopnightlamp-wc)">
+  <!-- lamp -->
+  <ellipse cx="248" cy="404" rx="36" ry="8" fill="#141D45" opacity="0.35"/>
+  <ellipse cx="246" cy="398" rx="30" ry="8" fill="#B98456"/>
+  <ellipse cx="246" cy="395" rx="28" ry="7" fill="#E8B54A"/>
+  <path d="M222 394a26 6 0 0 0 30 6" stroke="#FFF4CC" stroke-width="2" fill="none" opacity="0.7" stroke-linecap="round"/>
+  <path d="M246 394Q238 330 262 300Q280 278 300 270" fill="none" stroke="#B98456" stroke-width="7" stroke-linecap="round"/>
+  <path d="M246 394Q238 330 262 300Q280 278 300 270" fill="none" stroke="#E8B54A" stroke-width="3" stroke-linecap="round"/>
+  <path d="M248 380Q242 334 264 304" fill="none" stroke="#FFF4CC" stroke-width="1.4" stroke-linecap="round" opacity="0.7"/>
+  <circle cx="262" cy="300" r="5" fill="#E8B54A"/>
+  <g transform="translate(320 270) rotate(16)">
+    <path d="M-52 0Q-50 -40 0 -44Q50 -40 52 0Z" fill="#3E7A4E"/>
+    <path d="M-52 0Q-50 -40 0 -44Q-30 -30 -34 0Z" fill="#6BAA58" opacity="0.55"/>
+    <path d="M52 0Q50 -40 0 -44Q34 -28 30 0Z" fill="#141D45" opacity="0.35"/>
+    <path d="M-38 -24Q-28 -38 -6 -40" stroke="#CDEBD9" stroke-width="2.4" fill="none" stroke-linecap="round" opacity="0.75"/>
+    <rect x="-6" y="-52" width="12" height="9" rx="3" fill="#E8B54A"/>
+    <ellipse cx="0" cy="0" rx="52" ry="8" fill="#E8B54A"/>
+    <ellipse cx="0" cy="1" rx="46" ry="6" fill="#FFF4CC"/>
+  </g>
+
+  <!-- notebook: leather cover + glowing pages -->
+  <ellipse cx="444" cy="418" rx="130" ry="10" fill="#141D45" opacity="0.25"/>
+  <path d="M312 398Q378 380 442 392Q506 380 572 390L580 420Q510 408 442 422Q374 408 304 424Z" fill="#7A4B32"/>
+  <path d="M304 424Q374 408 442 422Q510 408 580 420L580 424Q510 412 442 426Q374 412 304 428Z" fill="#4A3328"/>
+  <path d="M322 394Q384 376 442 388L442 414Q382 400 314 414Z" fill="url(#shopnightlamp-page)"/>
+  <path d="M442 388Q500 376 562 386L568 410Q504 400 442 414Z" fill="url(#shopnightlamp-page)"/>
+  <!-- page edges -->
+  <path d="M314 414Q382 400 442 414Q504 400 568 410" stroke="#E8B54A" stroke-width="1.5" fill="none" opacity="0.7"/>
+  <path d="M442 388V414" stroke="#B98456" stroke-width="1.6" opacity="0.7"/>
+  <path d="M432 390q6 10 10 24q4 -14 10 -24" fill="#F4C28A" opacity="0.6"/>
+  <!-- handwritten lines -->
+  <g stroke="#B98456" stroke-width="1" stroke-linecap="round" opacity="0.55" fill="none">
+    <path d="M340 396q40 -10 84 -4M338 402q40 -9 86 -4M336 408q30 -6 50 -4"/>
+    <path d="M462 390q40 -8 84 -2M462 396q40 -8 86 -2M462 402q24 -4 46 -2"/>
+  </g>
+  <path d="M326 393Q384 375 442 387Q500 375 562 385" stroke="#FFF8E0" stroke-width="1.6" fill="none" opacity="0.9" stroke-linecap="round"/>
+  <!-- tiny ink sketch on the right page -->
+  <path d="M520 404q8 -8 16 0" stroke="#4A3B3B" stroke-width="1" fill="none" opacity="0.6"/>
+  <!-- curled page corner -->
+  <path d="M562 386q8 -6 12 -14q-4 12 -6 24z" fill="#FFF4CC"/>
+  <!-- ribbon bookmark -->
+  <path d="M446 414l4 20l4 -6l4 6l-2 -20z" fill="#D2412F"/>
+
+  <!-- open blue tin, lid leaning -->
+  <ellipse cx="600" cy="436" rx="30" ry="6" fill="#141D45" opacity="0.3"/>
+  <path d="M576 418v14a24 6 0 0 0 48 0v-14z" fill="#3F86C8"/>
+  <path d="M606 418v20a24 6 0 0 0 18 -6v-14z" fill="#22698A" opacity="0.6"/>
+  <ellipse cx="600" cy="418" rx="24" ry="6" fill="#22698A"/>
+  <ellipse cx="600" cy="419" rx="20" ry="4.4" fill="#141D45" opacity="0.5"/>
+  <path d="M578 424q4 8 14 10" stroke="#BFDDEE" stroke-width="2" fill="none" opacity="0.8" stroke-linecap="round"/>
+  <path d="M576 426h48" stroke="#E8B54A" stroke-width="2" opacity="0.8"/>
+  <g transform="translate(642 422) rotate(-62)"><ellipse rx="22" ry="6" fill="#5E9FD3"/><ellipse rx="16" ry="3.5" fill="#BFDDEE" opacity="0.7"/><circle r="3" fill="#E8B54A"/></g>
+  <!-- small brass key -->
+  <g transform="translate(540 432) rotate(-10)">
+    <circle cx="0" cy="0" r="6" fill="none" stroke="#E8B54A" stroke-width="3"/>
+    <rect x="5" y="-1.5" width="22" height="3" fill="#E8B54A"/>
+    <rect x="20" y="1" width="3" height="5" fill="#E8B54A"/><rect x="25" y="1" width="2.5" height="4" fill="#E8B54A"/>
+    <path d="M-4 -3a5 5 0 0 1 6 -2M8 -1h16" stroke="#FFF4CC" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  </g>
+</g>
+
+<!-- ============ TEAPOT + LAPTOP ============ -->
+<g filter="url(#shopnightlamp-wc)">
+  <!-- laptop closed -->
+  <ellipse cx="722" cy="404" rx="70" ry="7" fill="#141D45" opacity="0.3"/>
+  <path d="M660 382L770 374L790 392L676 402Z" fill="#3F5560"/>
+  <path d="M676 402L790 392L790 398L676 408Z" fill="#2B3C50"/>
+  <path d="M660 382L676 402L676 408L660 388Z" fill="#4E6A76"/>
+  <path d="M662 383l14 18" stroke="#F4C28A" stroke-width="1.5" opacity="0.6"/>
+  <circle cx="730" cy="387" r="4.5" fill="#CDEBD9" opacity="0.85"/>
+  <rect x="748" y="380" width="10" height="6" rx="1.5" fill="#F4C9A8" opacity="0.8" transform="rotate(-6 753 383)"/>
+  <!-- mug on the laptop -->
+  <path d="M752 356h22v24a11 4 0 0 1 -22 0z" fill="#F7E9D2"/>
+  <path d="M764 356h10v24a11 4 0 0 1 -10 4z" fill="#6E6A8A" opacity="0.35"/>
+  <path d="M774 362q9 0 8 8t-8 6" fill="none" stroke="#F7E9D2" stroke-width="3"/>
+  <ellipse cx="763" cy="356" rx="11" ry="3" fill="#7A4B32"/>
+  <path d="M754 364v12" stroke="#FFE6A8" stroke-width="1.5" opacity="0.6" stroke-linecap="round"/>
+
+  <!-- teapot (lit from the left by the lamp) -->
+  <ellipse cx="616" cy="402" rx="44" ry="7" fill="#141D45" opacity="0.35"/>
+  <path d="M584 376q-18 -6 -24 -30l-6 -6q4 -2 10 2q6 18 22 22z" fill="#C9573C"/>
+  <path d="M556 340q4 -2 10 2" stroke="#F6B083" stroke-width="2" stroke-linecap="round"/>
+  <path d="M648 362q22 -4 20 16q-2 14 -18 16" fill="none" stroke="#B04A33" stroke-width="7" stroke-linecap="round"/>
+  <ellipse cx="614" cy="372" rx="38" ry="28" fill="#C9573C"/>
+  <rect x="590" y="394" width="48" height="6" rx="3" fill="#A6452F"/>
+  <path d="M578 372a36 28 0 0 1 30 -28q-22 14 -20 46z" fill="#F6B083" opacity="0.6"/>
+  <path d="M640 352a38 28 0 0 1 4 40q-14 8 -24 8q24 -16 20 -48z" fill="#2B3C78" opacity="0.4"/>
+  <ellipse cx="614" cy="346" rx="20" ry="5.5" fill="#A6452F"/>
+  <ellipse cx="614" cy="344" rx="17" ry="4.5" fill="#C9573C"/>
+  <circle cx="614" cy="337" r="5" fill="#C9573C"/><circle cx="612.5" cy="335.5" r="2" fill="#F6B083"/>
+  <path d="M588 362q4 -10 14 -14" stroke="#FFF4CC" stroke-width="2.6" fill="none" stroke-linecap="round" opacity="0.9"/>
+  <!-- painted flower band -->
+  <path d="M578 374q36 10 72 0" stroke="#F7E9D2" stroke-width="2" fill="none" opacity="0.7"/>
+  <g fill="#CDEBD9"><circle cx="594" cy="378" r="2.4"/><circle cx="612" cy="381" r="2.4"/><circle cx="630" cy="379" r="2.4"/></g>
+  <g fill="#E8B54A"><circle cx="594" cy="378" r="0.9"/><circle cx="612" cy="381" r="0.9"/><circle cx="630" cy="379" r="0.9"/></g>
+</g>
+
+<!-- steam from the spout (against the dark wall) -->
+<g filter="url(#shopnightlamp-cloud)" opacity="0.75">
+  <g fill="#A7AECB" opacity="0.6">
+    <circle cx="556" cy="330" r="6"/><circle cx="552" cy="316" r="8"/><circle cx="558" cy="298" r="10"/>
+    <circle cx="550" cy="278" r="11"/><circle cx="558" cy="256" r="10"/>
+  </g>
+  <g fill="#FFF7EA">
+    <circle cx="553" cy="328" r="5" opacity="0.9"/><circle cx="549" cy="313" r="7" opacity="0.8"/><circle cx="555" cy="295" r="8.5" opacity="0.6"/>
+    <circle cx="547" cy="275" r="9" opacity="0.42"/><circle cx="555" cy="253" r="8" opacity="0.25"/>
+  </g>
+</g>
+
+<!-- ============ MAGIC: ink drawings rise from the notebook ============ -->
+<ellipse cx="444" cy="392" rx="96" ry="22" fill="#FFE6A8" opacity="0.55" filter="url(#shopnightlamp-glow)"/>
+<ellipse cx="444" cy="280" rx="90" ry="80" fill="#F6B25A" opacity="0.2" filter="url(#shopnightlamp-glow)"/>
+<!-- bulb bloom -->
+<ellipse cx="322" cy="284" rx="46" ry="16" fill="#FFE6A8" opacity="0.75" filter="url(#shopnightlamp-glow)"/>
+<circle cx="322" cy="282" r="5" fill="#FFF8E0"/>
+
+<!-- rising spark trail -->
+<g fill="#FFE6A8">
+  <circle cx="420" cy="374" r="2" opacity="0.9"/><circle cx="452" cy="366" r="1.6"/><circle cx="436" cy="352" r="2.2" opacity="0.8"/>
+  <circle cx="470" cy="346" r="1.4" opacity="0.9"/><circle cx="410" cy="344" r="1.5" opacity="0.7"/><circle cx="448" cy="332" r="1.8" opacity="0.8"/>
+  <circle cx="486" cy="324" r="1.3" opacity="0.7"/><circle cx="426" cy="316" r="1.4" opacity="0.6"/><circle cx="462" cy="302" r="1.2" opacity="0.7"/>
+  <circle cx="404" cy="290" r="1.4" opacity="0.5"/><circle cx="500" cy="278" r="1.1" opacity="0.6"/><circle cx="444" cy="262" r="1.3" opacity="0.6"/>
+  <circle cx="470" cy="234" r="1" opacity="0.5"/><circle cx="396" cy="248" r="1" opacity="0.45"/><circle cx="458" cy="206" r="1" opacity="0.4"/>
+  <circle cx="482" cy="356" r="1.2" opacity="0.6"/><circle cx="398" cy="364" r="1.2" opacity="0.7"/><circle cx="512" cy="300" r="1" opacity="0.5"/>
+</g>
+<g fill="#F9CD92" opacity="0.4">
+  <circle cx="430" cy="360" r="4"/><circle cx="456" cy="338" r="3.4"/><circle cx="440" cy="300" r="3"/><circle cx="476" cy="270" r="2.6"/>
+</g>
+<g stroke="#FFF4CC" stroke-width="1.2" stroke-linecap="round">
+  <path d="M528 300v10M523 305h10"/><path d="M414 270v8M410 274h8" opacity="0.8"/><path d="M500 248v6M497 251h6" opacity="0.6"/>
+</g>
+
+<!-- paper boat -->
+<g transform="translate(392 326) rotate(-8) scale(1.35)" stroke="#FFE6A8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M-20 0H20L12 9H-12Z" fill="#F9CD92" fill-opacity="0.45"/>
+  <path d="M-3 0V-18L11 0" fill="#FFE6A8" fill-opacity="0.4"/>
+  <path d="M-3 -10L-12 0" fill="none"/>
+  <path d="M-26 16q6 -3 12 0t12 0" fill="none" opacity="0.7"/>
+</g>
+<!-- teacup -->
+<g transform="translate(492 322) rotate(6) scale(1.3)" stroke="#FFE6A8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M-13 -6H13Q12 9 0 10Q-12 9 -13 -6Z" fill="#F9CD92" fill-opacity="0.45"/>
+  <path d="M13 -3q8 -1 7 5t-9 4" fill="none"/>
+  <path d="M-18 12q18 5 36 0" fill="none"/>
+  <path d="M-4 -10q-4 -5 0 -9t0 -8M4 -10q-4 -5 0 -9" fill="none" opacity="0.7"/>
+</g>
+<!-- balloon over a hill -->
+<g transform="translate(428 222) rotate(-4) scale(1.4)" stroke="#FFE6A8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M-30 18Q-6 -4 30 18" fill="#F9CD92" fill-opacity="0.32"/>
+  <path d="M4 -30a12 13 0 1 1 0.1 0Z" transform="translate(0 4)" fill="#F9CD92" fill-opacity="0.45"/>
+  <path d="M-4 -4L-1 4M12 -4L9 4" fill="none"/>
+  <rect x="-2" y="4" width="10" height="6" fill="#FFE6A8" fill-opacity="0.45"/>
+  <path d="M4 -26v13" fill="none" opacity="0.6"/>
+</g>
+
+<!-- ============ ATMOSPHERE ============ -->
+<ellipse cx="380" cy="360" rx="260" ry="120" fill="#F6B25A" opacity="0.08"/>
+<rect width="800" height="500" filter="url(#shopnightlamp-wash)" opacity="0.16"/>
+<rect width="800" height="500" fill="url(#shopnightlamp-vignette)"/>
+<rect width="800" height="500" filter="url(#shopnightlamp-paper)" opacity="0.16"/>
+</svg>

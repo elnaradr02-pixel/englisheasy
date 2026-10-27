@@ -381,7 +381,7 @@ function settings() {
       <div class="switch"><span>Скорость речи</span>${seg("slow", "Медленно", "Обычно")}</div>
     </div>
     <button class="btn primary block" id="st-save" style="margin-top:14px">Готово</button>
-    <p class="muted small" style="margin-top:18px">Хочешь упражнения, карточки и грамматику? Они остались в <a href="classic/" style="color:var(--accent)">старой версии</a>.</p>
+    <p class="muted small" style="margin-top:18px">Хочешь упражнения, карточки и грамматику? Они остались в <a href="../classic/" style="color:var(--accent)">старой версии</a>.</p>
     <button class="btn ghost block" id="st-reset" style="color:var(--bad);margin-top:6px">Начать сериал заново</button>`, (el) => {
     el.querySelectorAll("[data-set]").forEach((b) => (b.onclick = () => { S[b.dataset.set] = b.dataset.val === "1"; save(); settings(); }));
     $("#st-save", el).onclick = () => { const v = $("#st-name", el).value.trim(); if (v) S.name = v; save(); closeSheet(); render(); };
@@ -510,4 +510,4 @@ const ACT = {
 render();
 if (!S.name) onboarding();
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !P) render(); });
-if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch(() => {});
+// офлайн-кэш держит основное приложение
