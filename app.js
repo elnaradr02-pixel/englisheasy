@@ -4,11 +4,12 @@
 const STORE_KEY = "englisheasy.v1";
 const CLAUDE_URL = "https://claude.ai/new";
 const NEW_WORDS_PER_DAY = 10;
-const DAY_GOAL = 3; // сколько заданий из 5 нужно, чтобы день засчитался
+const DAY_GOAL = 4; // сколько заданий из 6 нужно, чтобы день засчитался
 const INTERVALS = [0, 1, 3, 7, 14, 30, 60, 120]; // дни для коробок карточек
 
 const MISSIONS = [
-  { id: "words", icon: "🃏", title: "Карточки со словами", xp: 20, desc: "Повтори слова на сегодня + 10 новых." },
+  { id: "words", icon: "🃏", title: "Карточки со словами", xp: 20, desc: "Повтори слова на сегодня + новые по твоему темпу." },
+  { id: "grammar", icon: "📝", title: "Грамматика", xp: 25, desc: "Новый урок или повторение: 12 заданий с автопроверкой." },
   { id: "series", icon: "🍿", title: "Серия на английском", xp: 30, desc: "С английскими субтитрами. Выпиши до 5 новых слов." },
   { id: "shadow", icon: "🦜", title: "Shadowing", xp: 15, desc: "Выбери 1 минуту из серии и повтори фразы вслух за героями 5 раз." },
   { id: "talk", icon: "💬", title: "Разговор с Claude", xp: 30, desc: "15+ минут только на английском. Можно голосом." },
@@ -43,6 +44,7 @@ function defaultState() {
     lastFreezeAward: null,
     bestStreak: 0,
     tests: [], // [{ day, level }]
+    lessons: {}, // { n: { best: 0..100, passed: day, hw: day, draft: "" } }
   };
 }
 
@@ -133,22 +135,60 @@ function levelInfo(xp = S.xp) {
 }
 
 // ---------- Карточки ----------
-const allCards = () => [
-  ...WORDS.map((w, i) => ({ id: "w" + i, en: w[0], ru: w[1], ex: w[2], theme: w[3] })),
-  ...S.custom.map((c) => ({ ...c, theme: "mine" })),
-];
+const LEVEL_ORDER = { A2: 0, B1: 1, B2: 2 };
+const OLD_THEME_LEVEL = { verbs: "A2", series: "A2", feelings: "A2", travel: "A2", work: "B1", linkers: "B1" };
+const cardId = (en) => "w:" + en.toLowerCase().trim();
+
+// Общая колода: базовые слова + большой словарь, отсортированные A2 → B1 → B2.
+// Внутри уровня темы чередуются, чтобы каждый день был разнообразным.
+const DECK = (() => {
+  const seen = new Set();
+  const out = [];
+  const push = (c) => { const id = cardId(c.en); if (seen.has(id)) return; seen.add(id); out.push({ ...c, id }); };
+  WORDS.forEach((w) => push({ en: w[0], ru: w[1], ex: w[2], theme: w[3], level: OLD_THEME_LEVEL[w[3]] || "A2", emoji: "" }));
+  (typeof EXTRA_WORDS !== "undefined" ? EXTRA_WORDS : []).forEach(push);
+  const byLevel = {};
+  out.forEach((c, i) => { (byLevel[c.level] = byLevel[c.level] || []).push({ c, i }); });
+  const ordered = [];
+  ["A2", "B1", "B2"].forEach((lv) => {
+    const themes = {};
+    (byLevel[lv] || []).forEach(({ c }) => (themes[c.theme] = themes[c.theme] || []).push(c));
+    const lists = Object.values(themes);
+    for (let r = 0; lists.some((l) => r < l.length); r++) lists.forEach((l) => l[r] && ordered.push(l[r]));
+  });
+  return ordered;
+})();
+
+const allCards = () => DECK.concat(S.custom.map((c) => ({ ...c, theme: "mine", level: "", emoji: "✍️" })));
+const pace = () => (S.profile && S.profile.pace) || NEW_WORDS_PER_DAY;
 
 function buildQueue() {
   const t = today();
   const cards = allCards();
   const due = cards.filter((c) => S.cards[c.id] && S.cards[c.id].due <= t);
   if (S.newLog.day !== t) S.newLog = { day: t, count: 0 };
-  const freshLeft = Math.max(0, NEW_WORDS_PER_DAY - S.newLog.count);
-  // Свои слова — в приоритете среди новых
+  const freshLeft = Math.max(0, pace() - S.newLog.count);
+  // Свои слова — в приоритете среди новых, дальше колода по порядку уровней
   const unseen = cards.filter((c) => !S.cards[c.id]).sort((a, b) => (b.theme === "mine") - (a.theme === "mine"));
   const fresh = unseen.slice(0, freshLeft).map((c) => ({ ...c, isNew: true }));
   return shuffle(due).concat(fresh);
 }
+
+const learnedByLevel = () => {
+  const r = { A2: 0, B1: 0, B2: 0 };
+  DECK.forEach((c) => { const s = S.cards[c.id]; if (s && s.box >= 3 && r[c.level] !== undefined) r[c.level]++; });
+  return r;
+};
+const deckByLevel = () => {
+  const r = { A2: 0, B1: 0, B2: 0 };
+  DECK.forEach((c) => { if (r[c.level] !== undefined) r[c.level]++; });
+  return r;
+};
+
+// ---------- План на 24 недели ----------
+const PLAN = typeof WEEKS !== "undefined" ? WEEKS : [];
+const weekNo = () => Math.min(Math.max(1, Math.floor(diffDays(S.profile.startDate, today()) / 7) + 1), PLAN.length || 1);
+const currentWeek = () => PLAN[weekNo() - 1];
 
 function grade(card, g) {
   const t = today();
@@ -165,6 +205,7 @@ function grade(card, g) {
 const learnedCount = () => Object.values(S.cards).filter((c) => c.box >= 3).length;
 
 // ---------- Утилиты ----------
+const plural = (n, one, few, many) => { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many; };
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -178,17 +219,9 @@ function toast(msg) {
   toastTimer = setTimeout(() => el.classList.add("hidden"), 2200);
 }
 
+// Тихий отклик на достижение: лёгкая вибрация, где она поддерживается (без визуального шума)
 function confetti() {
-  const items = ["🎉", "✨", "⭐", "🔥", "💜", "🏆"];
-  for (let i = 0; i < 18; i++) {
-    const s = document.createElement("div");
-    s.className = "confetti";
-    s.textContent = items[i % items.length];
-    s.style.left = Math.random() * 100 + "vw";
-    s.style.animationDelay = Math.random() * 0.5 + "s";
-    document.body.appendChild(s);
-    setTimeout(() => s.remove(), 2400);
-  }
+  try { if (navigator.vibrate) navigator.vibrate(30); } catch (e) { /* ignore */ }
 }
 
 function speak(text) {
@@ -318,6 +351,7 @@ function render() {
   const v = $("#view");
   if (tab === "today") v.innerHTML = viewToday();
   if (tab === "words") v.innerHTML = viewWords();
+  if (tab === "lessons") v.innerHTML = viewLessons();
   if (tab === "series") v.innerHTML = viewSeries();
   if (tab === "bosses") v.innerHTML = viewBosses();
   if (tab === "progress") v.innerHTML = viewProgress();
@@ -340,15 +374,22 @@ function viewToday() {
   if (started && !dayCounted(y) && !dayCounted(k)) {
     banner = `<div class="banner bad">⚠️ Вчера день не засчитан. Никаких отговорок — сегодня сделай минимум ${DAY_GOAL} задания!</div>`;
   } else if (dayCounted(k)) {
-    banner = `<div class="banner good">🔥 Сегодня день засчитан! ${done < 5 ? "Добей все 5 заданий — получишь бонус +" + ALL_DONE_BONUS + " XP." : "Идеальный день!"}</div>`;
+    banner = `<div class="banner good">🔥 Сегодня день засчитан! ${done < MISSIONS.length ? "Добей все " + MISSIONS.length + " заданий — получишь бонус +" + ALL_DONE_BONUS + " XP." : "Идеальный день!"}</div>`;
   }
   const goal = S.profile.goalDate ? (() => {
     const left = diffDays(k, S.profile.goalDate);
     return left >= 0 ? `<div class="banner info">🎯 ${esc(S.profile.goalText || "Цель")}: осталось ${left} дн.</div>` : "";
   })() : "";
 
-  const phraseIdx = dayIndex() % WORDS.length;
-  const ph = WORDS[phraseIdx];
+  const phc = DECK[(dayIndex() * 7) % DECK.length];
+  const ph = [phc.en, phc.ru, phc.ex];
+  const wk = currentWeek();
+  const weekHtml = wk ? `<div class="card week-now" data-act="plan" style="cursor:pointer">
+      <div class="row between"><span class="pill accent">Неделя ${weekNo()} из ${PLAN.length}</span><span class="small muted">весь план ›</span></div>
+      <h3 style="margin-top:8px">${esc(wk.title)}</h3>
+      <p class="small">${esc(wk.goal)}</p>
+      <p class="small muted" style="margin:0">🗣️ ${esc(wk.speaking)}</p>
+    </div>` : "";
   const cur = SERIES.find((s) => s.id === S.current);
   const topic = TOPICS[dayIndex() % TOPICS.length];
   const nextBoss = BOSSES.find((b) => !S.bosses[b.id] || !S.bosses[b.id].won);
@@ -360,6 +401,11 @@ function viewToday() {
       const q = buildQueue().length;
       extra = `<p class="small muted">${isDone ? `Повторено сегодня: ${rec.reviews}` : `В очереди: ${q} карточек`}</p>
         <div class="btns"><button class="btn sm primary" data-act="go-words">Открыть карточки</button></div>`;
+    }
+    if (m.id === "grammar") {
+      const nl = nextLesson();
+      extra = nl ? `<p class="small muted">Следующий урок: ${nl.emoji} ${nl.n}. ${esc(nl.title)}</p>` : "";
+      extra += `<div class="btns">${nl ? `<button class="btn sm primary" data-lesson="${nl.n}">Открыть урок</button>` : ""}${passedLessons().length ? `<button class="btn sm" data-act="review">🔁 Повторение</button>` : ""}</div>`;
     }
     if (m.id === "series") {
       extra = cur
@@ -377,33 +423,33 @@ function viewToday() {
     return `<div class="card mission ${isDone ? "done" : ""}">
       <button class="check" data-toggle="${m.id}" aria-label="Отметить">${isDone ? "✓" : ""}</button>
       <div class="grow">
-        <div class="row between"><h3>${m.icon} ${m.title}</h3><span class="xp-tag">+${m.xp} XP</span></div>
+        <div class="row between"><h3>${m.title}</h3><span class="xp-tag">+${m.xp} XP</span></div>
         <p class="small muted">${m.desc}</p>${extra}
       </div></div>`;
   }).join("");
 
   return `
     <div class="row between" style="margin-bottom:12px">
-      <div><p class="muted small" style="margin:0">${fmtDate(k)}</p><h1>Hi, ${esc(nm())}! 👋</h1></div>
+      <div><p class="muted small" style="margin:0">${fmtDate(k)}</p><h1>Hi, ${esc(nm())}</h1></div>
     </div>
     <div class="hero">
       <div class="grid3" style="margin-bottom:14px">
-        <div class="stat"><b>🔥 ${st}</b><span>подряд</span></div>
-        <div class="stat"><b>${L.rankIcon} ${L.level}</b><span>${L.rank}</span></div>
-        <div class="stat"><b>${done}/5</b><span>заданий</span></div>
+        <div class="stat"><b>${st}</b><span>дней подряд</span></div>
+        <div class="stat"><b>${L.level}</b><span>уровень</span></div>
+        <div class="stat"><b>${done}/${MISSIONS.length}</b><span>заданий</span></div>
       </div>
       <div class="row between small" style="margin-bottom:6px"><span>${S.xp} XP</span><span class="muted">ещё ${L.toNext} XP до ур. ${L.level + 1}</span></div>
       <div class="bar"><i style="width:${L.pct}%"></i></div>
       ${S.freezes ? `<p class="small muted" style="margin:10px 0 0">🧊 Заморозок серии: ${S.freezes}</p>` : ""}
     </div>
-    ${banner}${goal}
+    ${banner}${goal}${weekHtml}
     <div class="card flat">
       <div class="row between"><span class="pill accent">Фраза дня</span><button class="speak" style="margin:0" data-speak="${esc(ph[0])}">🔊</button></div>
-      <h3 style="margin-top:8px;font-size:20px">${esc(ph[0])}</h3>
+      <h3 style="margin-top:8px;font-size:20px">${phc.emoji ? esc(phc.emoji) + " " : ""}${esc(ph[0])}</h3>
       <p>${esc(ph[1])}</p><p class="small muted"><i>${esc(ph[2])}</i></p>
     </div>
     <h2>Задания на сегодня</h2>
-    <p class="small muted">Минимум ${DAY_GOAL} из 5, чтобы день засчитался.</p>
+    <p class="small muted">Минимум ${DAY_GOAL} из ${MISSIONS.length}, чтобы день засчитался.</p>
     ${missionHtml}
     ${nextBoss ? `<div class="card row" data-act="go-bosses" style="cursor:pointer">
       <div class="emoji">${nextBoss.emoji}</div>
@@ -423,20 +469,24 @@ function viewWords() {
   if (wordsSeg === "cards") body = viewCards();
   if (wordsSeg === "mine") body = viewMine();
   if (wordsSeg === "grammar") body = viewGrammar();
-  return `<h1>Слова</h1><p class="muted">${learnedCount()} выучено · ${Object.keys(S.cards).length} в изучении · ${allCards().length} всего</p>${seg}${body}`;
+  const lb = learnedByLevel(), db = deckByLevel();
+  const lvlBars = ["A2", "B1", "B2"].map((l) => `<div class="grow"><div class="row between small"><b>${l}</b><span class="muted">${lb[l]}/${db[l]}</span></div>
+    <div class="bar" style="height:6px;margin-top:4px"><i style="width:${db[l] ? Math.round((lb[l] / db[l]) * 100) : 0}%"></i></div></div>`).join("");
+  return `<h1>Слова</h1><p class="muted">${learnedCount()} выучено · ${Object.keys(S.cards).length} в изучении · ${allCards().length} всего · ${pace()} новых в день</p>
+    <div class="card row" style="gap:14px">${lvlBars}</div>${seg}${body}`;
 }
 
 function viewCards() {
   if (!session) {
     const q = buildQueue();
     if (!q.length) {
-      return `<div class="card center flash"><div style="font-size:48px">🎉</div><h3>На сегодня всё!</h3>
+      return `<div class="card center flash"><div style="font-size:32px;margin-bottom:8px">🎉</div><h3>На сегодня всё!</h3>
         <p class="muted">Новые слова появятся завтра. Хочешь больше — добавь свои слова из сериала.</p>
         <button class="btn primary" data-seg="mine">➕ Добавить свои слова</button></div>`;
     }
     const newN = q.filter((c) => c.isNew).length;
     return `<div class="card center flash">
-      <div style="font-size:48px">🃏</div>
+      <div style="font-size:32px;margin-bottom:8px">🃏</div>
       <h3>${q.length} карточек на сегодня</h3>
       <p class="muted">${q.length - newN} повторить · ${newN} новых</p>
       <button class="btn primary" data-act="start-cards" style="margin-top:10px">Поехали!</button>
@@ -444,7 +494,7 @@ function viewCards() {
     <p class="small muted center">Как это работает: слова, которые помнишь, показываются всё реже (через 1, 3, 7, 14, 30 дней...). Те, что забыла, — снова сегодня.</p>`;
   }
   if (session.idx >= session.queue.length) {
-    return `<div class="card center flash"><div style="font-size:48px">✅</div><h3>Сессия завершена!</h3>
+    return `<div class="card center flash"><div style="font-size:32px;margin-bottom:8px">✅</div><h3>Сессия завершена!</h3>
       <p class="muted">Повторено: ${session.count}</p>
       <button class="btn primary" data-act="end-cards">Готово</button></div>`;
   }
@@ -454,10 +504,12 @@ function viewCards() {
   const front = reverse ? c.ru : c.en;
   const back = reverse ? c.en : c.ru;
   return `<div class="row between small muted" style="margin-bottom:8px"><span>${session.idx + 1} / ${session.queue.length}</span>
-      <span>${c.isNew ? '<span class="pill accent">новое</span>' : ""} ${reverse ? '<span class="pill">скажи по-английски</span>' : ""}</span></div>
+      <span>${c.level ? `<span class="pill">${c.level}</span>` : ""} ${c.isNew ? '<span class="pill accent">новое</span>' : ""} ${reverse ? '<span class="pill">скажи по-английски</span>' : ""}</span></div>
     <div class="bar" style="margin-bottom:12px"><i style="width:${Math.round((session.idx / session.queue.length) * 100)}%"></i></div>
     <div class="card flash">
+      ${c.emoji ? `<div class="flash-emoji">${esc(c.emoji)}</div>` : ""}
       <div class="front">${esc(front)}</div>
+      ${THEMES[c.theme] ? `<div class="small muted" style="margin-top:6px">${THEMES[c.theme]}</div>` : ""}
       ${session.shown ? `<div class="back">${esc(back)}</div>${c.ex ? `<div class="ex">${esc(c.ex)}</div>` : ""}` : ""}
       ${(!reverse || session.shown) ? `<button class="speak" data-speak="${esc(c.en)}">🔊</button>` : ""}
     </div>
@@ -492,6 +544,238 @@ function viewMine() {
 function viewGrammar() {
   return `<p class="muted small">Коротко и без воды. Открывай, когда Claude поправляет одну и ту же ошибку.</p>` +
     GRAMMAR.map((g) => `<details class="card"><summary>${esc(g.title)}</summary><ul>${g.body.map((b) => `<li>${b}</li>`).join("")}</ul></details>`).join("");
+}
+
+// --- Уроки грамматики ---
+const COURSE = typeof LESSONS !== "undefined" ? LESSONS.slice().sort((a, b) => a.n - b.n) : [];
+const PASS = 70;
+const lessonRec = (n) => (S.lessons[n] = S.lessons[n] || { best: 0, passed: null, hw: null, draft: "" });
+const isPassed = (n) => !!(S.lessons[n] && S.lessons[n].best >= PASS);
+const isOpen = (n) => n === COURSE[0]?.n || isPassed(n - 1) || isPassed(n);
+const passedLessons = () => COURSE.filter((l) => isPassed(l.n));
+const nextLesson = () => COURSE.find((l) => !isPassed(l.n));
+let LV = null; // состояние открытого урока / повторения
+
+// Сравнение ответов: регистр, апострофы, сокращения (don't = do not) не важны
+function normAns(s) {
+  return " " + String(s).toLowerCase().replace(/[’‘`]/g, "'").replace(/[.!?,;:]+/g, " ")
+    .replace(/\bwon't\b/g, "will not").replace(/\bcan't\b/g, "cannot").replace(/\bcan not\b/g, "cannot")
+    .replace(/\bshan't\b/g, "shall not").replace(/n't\b/g, " not").replace(/'m\b/g, " am").replace(/'re\b/g, " are")
+    .replace(/'ll\b/g, " will").replace(/'ve\b/g, " have").replace(/\s+/g, " ").trim() + " ";
+}
+const ansMatch = (given, answers) => answers.some((a) => normAns(a) === normAns(given));
+const orderWords = (ex) => ex.answer[0].replace(/[.?!]+$/, "").split(/\s+/);
+
+function startLesson(n, stage = "learn") {
+  const l = COURSE.find((x) => x.n === n);
+  LV = { mode: "lesson", n, stage, items: l.exercises.map((e) => ({ ...e, from: n })), idx: 0, ok: 0, wrong: [] };
+  prepItem(); tab = "lessons"; window.scrollTo(0, 0); render();
+}
+function startReview() {
+  const pool = [];
+  const done = passedLessons();
+  done.forEach((l, i) => {
+    const w = i >= done.length - 3 ? 2 : 1; // последние уроки — чаще
+    l.exercises.forEach((e) => { for (let k = 0; k < w; k++) pool.push({ ...e, from: l.n }); });
+  });
+  const seen = new Set(); const items = [];
+  for (const e of shuffle(pool)) { const key = e.from + e.q; if (!seen.has(key)) { seen.add(key); items.push(e); } if (items.length >= 12) break; }
+  LV = { mode: "review", stage: "practice", items, idx: 0, ok: 0, wrong: [] };
+  prepItem(); tab = "lessons"; window.scrollTo(0, 0); render();
+}
+function prepItem() {
+  const e = LV.items[LV.idx];
+  LV.checked = false; LV.correct = false; LV.picked = null; LV.typed = "";
+  if (e && e.type === "order") { LV.pool = shuffle(orderWords(e).map((_, i) => i)); LV.line = []; }
+  if (e && e.type === "choice") LV.opts = shuffle(e.options);
+}
+function checkItem(given) {
+  const e = LV.items[LV.idx];
+  LV.checked = true;
+  LV.correct = ansMatch(given, e.answer);
+  if (LV.correct) LV.ok++; else LV.wrong.push({ ...e, given });
+  render();
+}
+function nextItem() {
+  LV.idx++;
+  if (LV.idx >= LV.items.length) return finishPractice();
+  prepItem(); render();
+}
+function finishPractice() {
+  LV.stage = "result";
+  LV.pct = Math.round((LV.ok / LV.items.length) * 100);
+  if (LV.mode === "lesson") {
+    const r = lessonRec(LV.n);
+    const firstPass = r.best < PASS && LV.pct >= PASS;
+    r.best = Math.max(r.best, LV.pct);
+    if (firstPass) { r.passed = today(); S.xp += 40; setTimeout(() => { confetti(); toast("🎓 Урок пройден! +40 XP"); }, 300); }
+  }
+  setMission("grammar", true);
+  save(); window.scrollTo(0, 0); render();
+}
+
+function hwPrompt(l, text) {
+  return `Hi Claude! Please check my English homework. Be a strict but kind teacher.
+About me: Russian speaker, level about ${lvl()}.
+Grammar lesson ${l.n}: "${l.title}" (${l.level}).
+Task: ${l.homework}
+
+My text:
+"""
+${text || "(I will write my text in the next message)"}
+"""
+
+Please, in Russian:
+1) Show every mistake: ❌ my version → ✅ correct version + a very short reason. Pay special attention to the grammar of this lesson.
+2) Rewrite my whole text correctly (in English).
+3) Score out of 10.
+4) Give me 3 extra short exercises on my weak spots and check my answers when I reply.`;
+}
+
+function viewLessons() {
+  if (LV) return lessonScreen();
+  if (!COURSE.length) return `<h1>Уроки</h1><p class="muted">Уроки загружаются...</p>`;
+  const passed = passedLessons().length;
+  const nl = nextLesson();
+  const groups = ["A2", "B1", "B2"].map((lv) => {
+    const ls = COURSE.filter((l) => l.level === lv);
+    if (!ls.length) return "";
+    return `<h2>${lv}</h2>` + ls.map((l) => {
+      const r = S.lessons[l.n];
+      const open = isOpen(l.n), ok = isPassed(l.n);
+      return `<div class="card boss ${ok ? "won" : open ? "open" : "locked"}" ${open ? `data-lesson="${l.n}" style="cursor:pointer"` : ""}>
+        <div class="node">${open ? l.emoji : "🔒"}</div>
+        <div class="grow"><p class="small muted" style="margin:0">Урок ${l.n} · ${l.level}</p><h3 style="margin:0">${esc(l.title)}</h3>
+        <p class="small muted" style="margin:0">${ok ? `✅ ${r.best}%` : r && r.best ? `Лучший результат: ${r.best}% (нужно ${PASS}%)` : open ? "Готов к изучению" : "Пройди предыдущий урок"}${r && r.hw ? " · ✍️ ДЗ сдано" : ok ? " · ✍️ ДЗ ждёт" : ""}</p></div>
+        ${open ? "<span>›</span>" : ""}</div>`;
+    }).join("");
+  }).join("");
+  return `<h1>Уроки</h1>
+    <p class="muted">Грамматика по порядку: короткое объяснение → 12 заданий → письменное ДЗ. Следующий урок открывается при ${PASS}%+.</p>
+    <div class="card"><div class="row between small" style="margin-bottom:6px"><span>Пройдено ${passed} из ${COURSE.length}</span><span class="muted">${nl ? nl.level : "B2 ✓"}</span></div>
+      <div class="bar"><i style="width:${Math.round((passed / COURSE.length) * 100)}%"></i></div>
+      <div class="btns" style="margin-top:12px">${nl ? `<button class="btn primary" data-lesson="${nl.n}">▶️ Урок ${nl.n}</button>` : ""}
+      <button class="btn" data-act="review" ${passed ? "" : "disabled"}>🔁 Повторение</button></div>
+      ${passed ? "" : `<p class="small muted" style="margin:8px 0 0">Повторение откроется после первого урока.</p>`}
+    </div>
+    <p class="small muted">Темп: 1–2 урока в неделю + повторение в остальные дни. Уже знаешь тему? Просто сразу реши задания на ${PASS}%+.</p>
+    ${groups}`;
+}
+
+function lessonScreen() {
+  const l = LV.mode === "lesson" ? COURSE.find((x) => x.n === LV.n) : null;
+  const back = `<button class="btn sm ghost" data-act="l-close" style="margin-bottom:12px">‹ Все уроки</button>`;
+
+  if (LV.stage === "learn") {
+    const r = S.lessons[l.n];
+    return `${back}
+      <div class="hero"><div class="row"><div style="font-size:30px">${l.emoji}</div><div class="grow">
+        <p class="small muted" style="margin:0">Урок ${l.n} · ${l.level}</p><h2 style="margin:0">${esc(l.title)}</h2></div></div>
+        <p style="margin:12px 0 0">${esc(l.hook)}</p></div>
+      <h2>📖 Правило</h2>
+      <div class="card"><ul style="padding-left:18px;margin:0">${l.rules.map((x) => `<li style="margin-bottom:8px">${x}</li>`).join("")}</ul></div>
+      <h2>💡 Примеры</h2>
+      <div class="card">${l.examples.map((x) => `<div class="list-item"><div class="grow"><b>${esc(x.en)}</b><div class="small muted">${esc(x.ru)}</div></div>
+        <button class="btn sm ghost" data-speak="${esc(x.en)}">🔊</button></div>`).join("")}</div>
+      <div class="banner bad">⚠️ Типичная ошибка<br><span style="font-weight:500">${esc(l.trap)}</span></div>
+      <button class="btn primary block" data-act="l-practice">✏️ К заданиям (${l.exercises.length})</button>
+      ${r && r.best ? `<p class="small muted center" style="margin-top:8px">Лучший результат: ${r.best}%</p>` : ""}
+      ${isPassed(l.n) ? hwBlock(l) : ""}`;
+  }
+
+  if (LV.stage === "practice") {
+    const e = LV.items[LV.idx];
+    const total = LV.items.length;
+    const title = LV.mode === "lesson" ? `Урок ${l.n}: ${esc(l.title)}` : "🔁 Повторение";
+    let body = "";
+    if (e.type === "choice") {
+      body = `<p class="ex-q">${gapHtml(e.q, `<span class="gap">${LV.checked ? esc(e.answer[0]) : "___"}</span>`)}</p>
+        <div class="stack">${LV.opts.map((o) => {
+          const cls = !LV.checked ? "" : ansMatch(o, e.answer) ? "good" : o === LV.picked ? "bad" : "";
+          return `<button class="btn block ${cls}" data-opt="${esc(o)}" ${LV.checked ? "disabled" : ""} style="${LV.checked ? "opacity:1" : ""}">${esc(o)}</button>`;
+        }).join("")}</div>`;
+    }
+    if (e.type === "input") {
+      body = `<p class="ex-q">${gapHtml(e.q, `<input type="text" id="l-in" class="gap-in" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(LV.typed)}" ${LV.checked ? "disabled" : ""}>`)}</p>
+        ${!LV.checked ? `<button class="btn primary block" data-act="l-check-in">Проверить</button>` : ""}`;
+    }
+    if (e.type === "order") {
+      const w = orderWords(e);
+      body = `<p class="small muted" style="margin:0">Собери предложение:</p><p class="ex-q">${esc(e.q)}</p>
+        <div class="order-line">${LV.line.map((i, pos) => `<button class="tile" data-untile="${pos}" ${LV.checked ? "disabled" : ""}>${esc(w[i])}</button>`).join("") || '<span class="small muted">нажимай на слова ниже</span>'}</div>
+        <div class="order-pool">${LV.pool.map((i, pos) => `<button class="tile" data-tile="${pos}" ${LV.checked ? "disabled" : ""}>${esc(w[i])}</button>`).join("")}</div>
+        ${!LV.checked ? `<button class="btn primary block" data-act="l-check-order" ${LV.pool.length ? "disabled" : ""}>Проверить</button>` : ""}`;
+    }
+    const fb = LV.checked ? `<div class="banner ${LV.correct ? "good" : "bad"}" style="margin-top:12px">${LV.correct ? "✅ Верно!" : `❌ Правильно: <b>${esc(e.answer[0])}</b>`}
+        <br><span style="font-weight:500">${esc(e.explain)}</span></div>
+        <button class="btn primary block" data-act="l-next">${LV.idx + 1 < total ? "Дальше →" : "Результат"}</button>` : "";
+    return `${back}<div class="row between small muted" style="margin-bottom:8px"><span>${title}</span><span style="white-space:nowrap">${LV.idx + 1} / ${total}</span></div>
+      <div class="bar" style="margin-bottom:12px"><i style="width:${Math.round((LV.idx / total) * 100)}%"></i></div>
+      <div class="card">${body}</div>${fb}`;
+  }
+
+  // result
+  const passed = LV.pct >= PASS;
+  const mistakes = LV.wrong.length ? `<h2>Разбор ошибок</h2>` + LV.wrong.map((w) => `<div class="card">
+      <p class="small muted" style="margin:0">${w.type === "order" ? esc(w.q) : esc(w.q)}</p>
+      <p style="margin:6px 0 0">Твой ответ: <s>${esc(w.given || "—")}</s></p>
+      <p style="margin:0">Правильно: <b>${esc(w.answer[0])}</b></p>
+      <p class="small muted" style="margin:4px 0 0">${esc(w.explain)}</p></div>`).join("") : "";
+  return `${back}<div class="card center" style="padding:24px">
+      <div style="font-size:34px">${LV.pct >= 90 ? "🏆" : passed ? "🎓" : "💪"}</div>
+      <h2 style="margin:6px 0">${LV.ok} из ${LV.items.length} · ${LV.pct}%</h2>
+      <p class="muted">${LV.mode === "review" ? "Повторение засчитано!" : passed ? (LV.pct >= 90 ? "Идеально! Следующий урок открыт." : "Урок пройден! Следующий урок открыт.") : `Нужно ${PASS}%, чтобы пройти. Перечитай правило и попробуй ещё раз.`}</p>
+      <div class="btns">${LV.mode === "lesson" ? `<button class="btn" data-act="l-learn">📖 Правило</button><button class="btn" data-act="l-practice">🔁 Ещё раз</button>` : `<button class="btn" data-act="review">🔁 Ещё повторение</button>`}
+      ${LV.mode === "lesson" && passed && nextLesson() ? `<button class="btn primary" data-lesson="${nextLesson().n}">Урок ${nextLesson().n} →</button>` : ""}</div>
+    </div>
+    ${l && passed ? hwBlock(l) : ""}
+    ${mistakes}`;
+}
+
+function gapHtml(q, gap) {
+  const parts = String(q).split("___");
+  return parts.length > 1 ? esc(parts[0]) + gap + parts.slice(1).map(esc).join("___") : esc(q) + " " + gap;
+}
+
+function hwBlock(l) {
+  const r = lessonRec(l.n);
+  return `<h2>✍️ Домашнее задание</h2>
+    <div class="card">
+      <p>${esc(l.homework)}</p>
+      <label>Напиши здесь (сохраняется автоматически)</label>
+      <textarea id="hw-text" data-hw="${l.n}" placeholder="Write your text in English...">${esc(r.draft || "")}</textarea>
+      <div class="btns" style="margin-top:10px">
+        <button class="btn primary" data-hw-send="${l.n}">📤 Отправить Claude на проверку</button>
+        ${r.hw ? `<span class="pill good" style="align-self:center">✓ Сдано ${fmtDate(r.hw)}</span>` : `<button class="btn good" data-hw-done="${l.n}">✓ Проверено (+30 XP)</button>`}
+      </div>
+      <p class="small muted" style="margin:8px 0 0">Claude исправит ошибки, перепишет текст правильно и даст 3 доп. задания на твои слабые места.</p>
+    </div>`;
+}
+
+function bindLessons(root) {
+  root.querySelectorAll("[data-lesson]").forEach((b) => (b.onclick = (ev) => { ev.stopPropagation(); startLesson(Number(b.dataset.lesson)); }));
+  root.querySelectorAll("[data-opt]").forEach((b) => (b.onclick = () => { if (LV.checked) return; LV.picked = b.dataset.opt; checkItem(b.dataset.opt); }));
+  root.querySelectorAll("[data-tile]").forEach((b) => (b.onclick = () => { const [i] = LV.pool.splice(Number(b.dataset.tile), 1); LV.line.push(i); render(); }));
+  root.querySelectorAll("[data-untile]").forEach((b) => (b.onclick = () => { const [i] = LV.line.splice(Number(b.dataset.untile), 1); LV.pool.push(i); render(); }));
+  const inp = $("#l-in", root);
+  if (inp && !LV.checked) {
+    inp.oninput = () => (LV.typed = inp.value);
+    inp.onkeydown = (ev) => { if (ev.key === "Enter") actions["l-check-in"](); };
+    setTimeout(() => inp.focus({ preventScroll: true }), 50);
+  }
+  const hw = $("#hw-text", root);
+  if (hw) hw.oninput = () => { lessonRec(Number(hw.dataset.hw)).draft = hw.value; save(); };
+  root.querySelectorAll("[data-hw-send]").forEach((b) => (b.onclick = () => {
+    const l = COURSE.find((x) => x.n === Number(b.dataset.hwSend));
+    const text = (hw && hw.value.trim()) || "";
+    const p = hwPrompt(l, text);
+    copyText(p); window.open(CLAUDE_URL, "_blank");
+    toast(text ? "ДЗ скопировано — вставь в Claude" : "Задание скопировано — напиши текст в Claude");
+  }));
+  root.querySelectorAll("[data-hw-done]").forEach((b) => (b.onclick = () => {
+    const r = lessonRec(Number(b.dataset.hwDone));
+    if (!r.hw) { r.hw = today(); S.xp += 30; save(); toast("✍️ ДЗ сдано! +30 XP"); render(); }
+  }));
 }
 
 // --- Сериалы ---
@@ -580,6 +864,37 @@ function openBoss(i) {
   });
 }
 
+// --- План ---
+// 32 урока распределены на недели 1–22, недели 23–24 — повторение
+const lessonsForWeek = (wk) => (typeof COURSE !== "undefined" ? COURSE : []).filter((l) => Math.ceil((l.n * 22) / 32) === wk);
+function weekCard(w, now) {
+  const series = (w.series || []).map((id) => SERIES.find((s) => s.id === id)).filter(Boolean);
+  const boss = BOSSES.find((b) => b.id === w.boss);
+  const ls = lessonsForWeek(w.week);
+  return `<div class="card ${now ? "week-now" : ""}" ${now ? 'id="week-now"' : ""}>
+    <div class="row between"><span class="pill ${now ? "accent" : ""}">Неделя ${w.week}${now ? " · сейчас" : ""}</span>${boss ? `<span class="pill red">${boss.emoji} босс</span>` : ""}</div>
+    <h3 style="margin-top:8px">${esc(w.title)}</h3>
+    <p class="small">${esc(w.goal)}</p>
+    ${ls.length ? `<p class="small" style="margin:0">📝 Уроки ${ls.map((l) => `${l.n}${isPassed(l.n) ? " ✓" : ""}`).join(", ")}: ${ls.map((l) => esc(l.title)).join(" · ")}</p>` : w.week > 22 ? `<p class="small" style="margin:0">📝 Повторение всех уроков</p>` : ""}
+    ${w.grammar && w.grammar.length ? `<p class="small" style="margin:0">📐 ${w.grammar.map(esc).join(", ")}</p>` : ""}
+    ${series.length ? `<p class="small" style="margin:0">🍿 ${series.map((s) => s.emoji + " " + esc(s.title)).join(", ")}</p>` : ""}
+    ${boss ? `<p class="small" style="margin:0">⚔️ ${esc(boss.title)}</p>` : ""}
+    <p class="small" style="margin:0">🗣️ ${esc(w.speaking)}</p>
+    <p class="small muted" style="margin:4px 0 0">🏁 ${esc(w.milestone)}</p>
+  </div>`;
+}
+function openPlan() {
+  const n = weekNo();
+  openModal(`<h2 style="margin-top:0">План на ${PLAN.length} ${plural(PLAN.length, "неделю", "недели", "недель")}</h2>
+    <p class="small muted">A2 → B1 примерно к 10–12 неделе, B2 к концу. Каждую неделю: фокус грамматики, сериал, босс и контрольная точка.</p>
+    ${PLAN.map((w) => weekCard(w, w.week === n)).join("")}
+    <button class="btn ghost block" id="cl">Закрыть</button>`, (el) => {
+    $("#cl", el).onclick = closeModal;
+    const cur = $("#week-now", el);
+    if (cur) cur.scrollIntoView({ block: "center" });
+  });
+}
+
 // --- Прогресс ---
 function viewProgress() {
   const L = levelInfo();
@@ -599,8 +914,8 @@ function viewProgress() {
     const dk = dayKey(d);
     if (dk > k) { cells += `<i style="opacity:.25"></i>`; continue; }
     const n = doneCount(dk);
-    const cls = S.frozen.includes(dk) ? "fz" : n >= 5 ? "l3" : n >= DAY_GOAL ? "l2" : n > 0 ? "l1" : "";
-    cells += `<i class="${cls} ${dk === k ? "today" : ""}" title="${dk}: ${n}/5"></i>`;
+    const cls = S.frozen.includes(dk) ? "fz" : n >= MISSIONS.length ? "l3" : n >= DAY_GOAL ? "l2" : n > 0 ? "l1" : "";
+    cells += `<i class="${cls} ${dk === k ? "today" : ""}" title="${dk}: ${n}/${MISSIONS.length}"></i>`;
   }
 
   const lastTest = S.tests[S.tests.length - 1];
@@ -608,21 +923,24 @@ function viewProgress() {
 
   return `<h1>Прогресс</h1>
     <div class="hero">
-      <div class="row"><div style="font-size:44px">${L.rankIcon}</div><div class="grow"><p class="small muted" style="margin:0">Уровень ${L.level}</p><h2 style="margin:0">${L.rank}</h2></div></div>
+      <div class="row"><div style="font-size:30px">${L.rankIcon}</div><div class="grow"><p class="small muted" style="margin:0">Уровень ${L.level}</p><h2 style="margin:0">${L.rank}</h2></div></div>
       <div class="row between small" style="margin:12px 0 6px"><span>${S.xp} XP</span><span class="muted">до следующего: ${L.toNext}</span></div>
       <div class="bar"><i style="width:${L.pct}%"></i></div>
     </div>
     <div class="grid2">
-      <div class="stat"><b>🔥 ${streak()}</b><span>серия (рекорд ${S.bestStreak})</span></div>
-      <div class="stat"><b>📅 ${totalDays}</b><span>дней засчитано</span></div>
-      <div class="stat"><b>🧠 ${learnedCount()}</b><span>слов выучено</span></div>
-      <div class="stat"><b>🍿 ${totalEp}</b><span>серий просмотрено</span></div>
-      <div class="stat"><b>💬 ${talks}</b><span>разговоров</span></div>
-      <div class="stat"><b>⚔️ ${bossesWon}/${BOSSES.length}</b><span>боссов</span></div>
+      <div class="stat"><b>${streak()}</b><span>серия (рекорд ${S.bestStreak})</span></div>
+      <div class="stat"><b>${totalDays}</b><span>дней засчитано</span></div>
+      <div class="stat"><b>${learnedCount()}</b><span>слов выучено</span></div>
+      <div class="stat"><b>${totalEp}</b><span>серий просмотрено</span></div>
+      <div class="stat"><b>${talks}</b><span>разговоров</span></div>
+      <div class="stat"><b>${bossesWon}/${BOSSES.length}</b><span>боссов</span></div>
     </div>
     <h2>Последние 12 недель</h2>
     <div class="card"><div class="heat">${cells}</div>
       <p class="small muted" style="margin:10px 0 0">Светлее — меньше заданий, ярче — больше. 🧊 голубой — заморозка.</p></div>
+
+    ${PLAN.length ? `<h2>План</h2>${weekCard(currentWeek(), true).replace('id="week-now"', "")}
+    <button class="btn block" data-act="plan" style="margin-bottom:12px">Открыть весь план на ${PLAN.length} ${plural(PLAN.length, "неделю", "недели", "недель")}</button>` : ""}
 
     <h2>Тест уровня</h2>
     <div class="card">
@@ -638,6 +956,7 @@ function viewProgress() {
     <h2>Настройки</h2>
     <div class="card">
       <label>Имя</label><input type="text" id="p-name" value="${esc(nm())}">
+      <label>Темп — новых слов в день</label><select id="p-pace">${paceOptions(pace())}</select>
       <label>Моя цель (например, поездка)</label><input type="text" id="p-goal" value="${esc(S.profile.goalText || "")}" placeholder="Поездка в Лондон">
       <label>Дата цели</label><input type="date" id="p-date" value="${esc(S.profile.goalDate || "")}">
       <button class="btn primary block" data-act="save-profile" style="margin-top:12px">Сохранить</button>
@@ -676,7 +995,8 @@ function bind(root) {
     if (!confirm("Удалить слово?")) return;
     S.custom = S.custom.filter((w) => w.id !== b.dataset.del); delete S.cards[b.dataset.del]; save(); render();
   }));
-  root.querySelectorAll("[data-act]").forEach((b) => (b.onclick = () => actions[b.dataset.act] && actions[b.dataset.act]()));
+  bindLessons(root);
+  root.querySelectorAll("[data-act]").forEach((b) => (b.onclick = (ev) => { ev.stopPropagation(); if (actions[b.dataset.act]) actions[b.dataset.act](); }));
 }
 
 function markWatched() {
@@ -710,6 +1030,14 @@ const actions = {
   talk: () => promptModal("💬 Разговор дня", talkPrompt(), () => {}),
   report: () => promptModal("📋 Отчёт для строгого коуча", reportText(), () => { setMission("report", true); render(); }),
   test: () => promptModal("🧪 Тест уровня", testPrompt()),
+  plan: openPlan,
+  review: startReview,
+  "l-close": () => { LV = null; window.scrollTo(0, 0); render(); },
+  "l-learn": () => startLesson(LV.n, "learn"),
+  "l-practice": () => startLesson(LV.n, "practice"),
+  "l-check-in": () => { const el = $("#l-in"); const v = el ? el.value.trim() : ""; if (!v) return toast("Впиши ответ"); LV.typed = v; checkItem(v); },
+  "l-check-order": () => { const e = LV.items[LV.idx]; const w = orderWords(e); checkItem(LV.line.map((i) => w[i]).join(" ")); },
+  "l-next": nextItem,
   "start-cards": () => {
     const q = buildQueue();
     session = { queue: q, idx: 0, shown: false, count: 0, rev: q.map(() => Math.random() < 0.5) };
@@ -743,6 +1071,7 @@ const actions = {
     S.profile.name = $("#p-name").value.trim() || S.profile.name;
     S.profile.goalText = $("#p-goal").value.trim();
     S.profile.goalDate = $("#p-date").value;
+    S.profile.pace = Number($("#p-pace").value);
     save(); toast("Сохранено"); render();
   },
   export: () => {
@@ -770,29 +1099,39 @@ const actions = {
   },
 };
 
+function paceOptions(cur) {
+  return [[10, "10 — спокойно (~1 год до B2)"], [20, "20 — интенсив (~6 мес. до B2)"], [30, "30 — турбо (для сильной памяти)"]]
+    .map(([v, t]) => `<option value="${v}" ${v === cur ? "selected" : ""}>${t}</option>`).join("");
+}
+
 // ---------- Первый запуск ----------
 function onboarding() {
   openModal(`
-    <div class="center" style="font-size:52px">🚀</div>
+    
     <h2 class="center" style="margin-top:6px">Welcome to EnglishEasy!</h2>
-    <p class="center muted">Твоя игра до уровня B2: сериалы, разговоры с Claude, карточки и боссы. Каждый день ~1–1,5 часа.</p>
+    <p class="center muted">Программа до уровня B2: сериалы, разговоры с Claude, слова и грамматика. 1–2 часа в день.</p>
     <label>Как тебя зовут?</label><input type="text" id="o-name" placeholder="Имя">
     <label>Твой уровень сейчас</label>
     <select id="o-level"><option>A1</option><option selected>A2</option><option>B1</option><option>B2</option></select>
+    <label>Темп — новых слов в день</label>
+    <select id="o-pace">${paceOptions(20)}</select>
     <label>Цель (необязательно)</label><input type="text" id="o-goal" placeholder="Например: поездка в Лондон">
     <label>Дата цели (необязательно)</label><input type="date" id="o-date">
     <div class="card flat small" style="margin-top:14px">
-      <b>Правила игры:</b><br>
-      🔥 Выполняй минимум ${DAY_GOAL} из 5 заданий в день — так растёт серия.<br>
-      🧊 За каждые 7 дней подряд — заморозка, она спасёт серию при пропуске.<br>
-      ⚔️ Раз в неделю — босс: ролевой разговор с Claude.<br>
-      📋 Каждый вечер — отчёт строгому коучу.
+      <b>Как это работает</b>
+      <ul style="padding-left:18px;margin:6px 0 0">
+        <li>Каждый день ${MISSIONS.length} заданий, минимум ${DAY_GOAL} — и день засчитан.</li>
+        <li>7 дней подряд дают заморозку: она спасёт серию при пропуске.</li>
+        <li>Грамматика по порядку: урок → задания → письменное ДЗ.</li>
+        <li>Раз в неделю — босс: ролевой разговор с Claude.</li>
+        <li>Вечером — короткий отчёт строгому коучу.</li>
+      </ul>
     </div>
     <button class="btn primary block" id="o-go" style="margin-top:14px">Начать челлендж</button>`, (el) => {
     $("#o-go", el).onclick = () => {
       const name = $("#o-name", el).value.trim();
       if (!name) return toast("Напиши своё имя 🙂");
-      S.profile = { name, level: $("#o-level", el).value, goalText: $("#o-goal", el).value.trim(), goalDate: $("#o-date", el).value, startDate: today() };
+      S.profile = { name, level: $("#o-level", el).value, pace: Number($("#o-pace", el).value), goalText: $("#o-goal", el).value.trim(), goalDate: $("#o-date", el).value, startDate: today() };
       S.lastCheck = addDays(today(), -1);
       save(); closeModal(); tab = "today"; render(); confetti();
     };

@@ -1,6 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e23b4e"/><stop offset="1" stop-color="#7b4dff"/></linearGradient></defs>
-  <rect width="512" height="512" fill="url(#g)"/>
-  <path d="M120 150h272a40 40 0 0 1 40 40v130a40 40 0 0 1-40 40H230l-70 60v-60h-40a40 40 0 0 1-40-40V190a40 40 0 0 1 40-40z" fill="#fff"/>
-  <text x="256" y="300" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-weight="800" font-size="120" fill="#7b4dff">EN</text>
+  <rect width="512" height="512" fill="#1f1e1c"/>
+  <text x="256" y="318" text-anchor="middle" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-weight="500" font-size="200" letter-spacing="-6" fill="#f7f6f3">En</text>
+  <rect x="196" y="352" width="120" height="10" rx="5" fill="#9db8ac"/>
 </svg>
