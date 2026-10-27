@@ -270,3 +270,24 @@ details.card li { margin-bottom: 6px; }
 
 /* Крупные заголовки внутри карточек и окон */
 .modal-card .row h2, .card.center h2, .hero h2 { text-transform: none; letter-spacing: -0.015em; font-size: 21px; color: var(--text); font-weight: 650; }
+
+/* Диктант: подсветка слов */
+.w-ok { color: var(--good); }
+.w-bad { color: var(--bad); text-decoration: underline wavy color-mix(in srgb, var(--bad) 50%, transparent); text-underline-offset: 4px; }
+
+/* Чтение */
+.reader p { font-size: 17px; line-height: 1.7; margin: 0 0 14px; }
+.reader p:last-child { margin-bottom: 0; }
+.gl { border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer;
+  text-decoration: underline dotted var(--accent); text-underline-offset: 4px; text-decoration-thickness: 1.5px; }
+.gl-pop { position: sticky; bottom: calc(env(safe-area-inset-bottom) + 76px); z-index: 5; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12); }
+
+/* График оценок речи */
+.chart { display: flex; align-items: flex-end; gap: 4px; height: 90px; }
+.chart .col { flex: 1; height: 100%; display: flex; align-items: flex-end; background: var(--card-2); border-radius: 4px; overflow: hidden; }
+.chart .col i { display: block; width: 100%; background: var(--accent); border-radius: 4px 4px 0 0; }
+
+input[type=time] { width: 100%; padding: 10px 12px; border-radius: 11px; border: 1px solid var(--line); background: var(--card); font-size: 16px; }
+.mission .check { pointer-events: none; }
+
+.btn.sm { white-space: nowrap; }
