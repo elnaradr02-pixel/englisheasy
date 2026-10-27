@@ -1849,7 +1849,7 @@ const actions = {
     const t = $("#rem-time").value || "19:00";
     S.remindTime = t; save();
     // iPhone сам предложит добавить событие, если открыть .ics по ссылке
-    window.open(new URL(`ics/remind-${t.replace(":", "")}.ics`, location.href).href, "_blank");
+    window.open(new URL(`../ics/remind-${t.replace(":", "")}.ics`, location.href).href, "_blank");
     toast("Нажми «Добавить» в окне Календаря");
   },
   "save-profile": () => {
@@ -1934,4 +1934,4 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 if (HAS_TTS) speechSynthesis.getVoices();
-if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch(() => {});
+// в старой версии офлайн-кэш не нужен (его держит основное приложение)
