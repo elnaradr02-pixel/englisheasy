@@ -71,6 +71,8 @@ function defaultState() {
     shadowDays: [],
     lastBackup: null,
     remindTime: "19:00",
+    imported: [], // отпечатки уже загруженных итогов Claude — повторно не засчитываются
+    seriesDraft: null, // черновик записи серии
   };
 }
 
@@ -106,18 +108,23 @@ function applyFreezes() {
   const y = addDays(today(), -1);
   if (!S.lastCheck) { S.lastCheck = y; return; }
   let k = addDays(S.lastCheck, 1);
+  let saved = false;
   while (diffDays(k, y) >= 0) {
-    if (!dayCounted(k) && dayCounted(addDays(k, -1)) && S.freezes > 0) {
-      S.freezes--; S.frozen.push(k);
-      toast("🧊 Заморозка спасла твою серию!");
+    if (!dayCounted(k) && dayCounted(addDays(k, -1))) {
+      // заморозки тратим, только если они закрывают весь пропуск целиком
+      const gap = [];
+      let j = k;
+      while (diffDays(j, y) >= 0 && !dayCounted(j)) { gap.push(j); j = addDays(j, 1); }
+      if (gap.length <= S.freezes) { S.freezes -= gap.length; S.frozen.push(...gap); saved = true; }
+      k = j; continue;
     }
     k = addDays(k, 1);
   }
+  if (saved) toast("🧊 Заморозка спасла твою серию!");
   S.lastCheck = y;
 }
 
-function afterMissionChange() {
-  const k = today();
+function afterMissionChange(k = today()) {
   const rec = dayRec(k);
   const all = MISSIONS.every((m) => rec.m[m.id]);
   if (all && !rec.bonus) { rec.bonus = true; S.xp += ALL_DONE_BONUS; toast(`Все задания! +${ALL_DONE_BONUS} XP бонус`); buzz(); }
@@ -130,16 +137,18 @@ function afterMissionChange() {
   save();
 }
 
-function completeMission(id) {
-  const rec = dayRec();
+// day — день, когда начато занятие (если закончила после полуночи, засчитываем вчерашнему дню)
+function completeMission(id, day) {
+  const k = day && diffDays(day, today()) === 1 ? day : today();
+  const rec = dayRec(k);
   if (rec.m[id]) return;
   const m = MISSIONS.find((x) => x.id === id);
-  const before = dayCounted(today());
+  const before = dayCounted(k);
   rec.m[id] = true;
   S.xp += m.xp;
   toast(`${m.title}: +${m.xp} XP`);
-  if (!before && dayCounted(today())) setTimeout(() => toast("🔥 День засчитан! Серия продолжается"), 1000);
-  afterMissionChange();
+  if (!before && dayCounted(k)) setTimeout(() => toast("🔥 День засчитан! Серия продолжается"), 1000);
+  afterMissionChange(k);
 }
 
 // ---------- Уровни ----------
@@ -229,16 +238,27 @@ const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 // Произнеси фразу: распознаём и сравниваем с эталоном
 function pronounce(target, out) {
   if (!SR) return;
+  if (HAS_TTS) speechSynthesis.cancel(); // освобождаем звук на iPhone
   const r = new SR();
   r.lang = "en-US"; r.interimResults = false; r.maxAlternatives = 3;
-  if (out) out.textContent = "Слушаю...";
+  let done = false;
+  if (out) out.textContent = "Слушаю... скажи фразу";
+  r.onend = () => { if (!done && out) out.textContent = "Ничего не услышала — нажми 🎤 и скажи фразу погромче"; };
   r.onresult = (e) => {
+    done = true;
     const alts = Array.from(e.results[0]).map((x) => x.transcript);
     const best = alts.map((t) => ({ t, c: closeness(t, target) })).sort((a, b) => b.c - a.c)[0];
     const pct = Math.round(best.c * 100);
     if (out) out.innerHTML = `${pct >= 90 ? "Отлично!" : pct >= 70 ? "Почти!" : "Ещё раз"} <span class="muted">· ${pct}% · «${esc(best.t)}»</span>`;
   };
-  r.onerror = () => { if (out) out.textContent = "Не расслышала. Разреши микрофон и попробуй ещё раз."; };
+  r.onerror = (e) => {
+    done = true;
+    if (!out) return;
+    const err = e && e.error;
+    out.textContent = err === "not-allowed" || err === "service-not-allowed"
+      ? "Нет доступа к микрофону или распознаванию речи. На iPhone: Настройки → Siri → включи «Слушать», или открой сайт в Safari."
+      : err === "no-speech" ? "Ничего не услышала — попробуй ещё раз" : "Распознавание сейчас недоступно";
+  };
   try { r.start(); } catch (e) { if (out) out.textContent = "Микрофон недоступен"; }
 }
 
@@ -280,7 +300,22 @@ function downloadFile(name, content, type) {
   const url = URL.createObjectURL(new Blob([content], { type }));
   const a = document.createElement("a");
   a.href = url; a.download = name; document.body.appendChild(a); a.click();
-  setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 1500);
+  setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 10000);
+}
+const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+// На iPhone (особенно с экрана «Домой») скачивание не работает — сохраняем через «Поделиться» → «Сохранить в Файлы».
+// Возвращает true — сохранено, false — отменено, null — неизвестно (обычное скачивание)
+function saveFile(name, content, type) {
+  if (IS_IOS && navigator.canShare && typeof File !== "undefined") {
+    try {
+      const file = new File([content], name, { type });
+      if (navigator.canShare({ files: [file] })) {
+        return navigator.share({ files: [file] }).then(() => true, (e) => (e && e.name === "AbortError" ? false : (downloadFile(name, content, type), null)));
+      }
+    } catch (e) { /* share недоступен */ }
+  }
+  downloadFile(name, content, type);
+  return Promise.resolve(IS_IOS ? null : true);
 }
 
 // ---------- Модальное окно ----------
@@ -379,46 +414,65 @@ function parsePairs(text) {
 }
 
 // ---------- Итог от Claude (#EE ... #END) ----------
-function parseEE(raw) {
-  const t = String(raw).replace(/\r/g, "").replace(/```[a-z]*\n?/gi, "").replace(/\*\*/g, "");
-  const i = t.lastIndexOf("#EE");
-  if (i < 0) return null;
-  let body = t.slice(i + 3);
-  const j = body.indexOf("#END");
-  if (j >= 0) body = body.slice(0, j);
+const EE_TYPES = ["talk", "boss", "hw", "test", "read"];
+function parseEEBlock(body) {
   const out = { type: "", score: null, level: "", verdict: "", boss: "", lesson: null, words: [], mistakes: [] };
   let section = null;
-  for (const line of body.split("\n").map((l) => l.trim()).filter(Boolean)) {
+  for (const raw of body.split("\n")) {
+    // убираем markdown: заголовки, маркеры списков, жирный шрифт
+    const line = raw.trim().replace(/^(#{1,6}\s*|[-•*+]\s+|\d+[.)]\s+)+/, "").replace(/[*`]/g, "").trim();
+    if (!line) continue;
+    if (/<[^>]*>/.test(line)) continue; // шаблон из задания, а не ответ Claude
     const kv = line.match(/^(TYPE|SCORE|LEVEL|VERDICT|BOSS|LESSON)\s*:\s*(.*)$/i);
     if (kv) {
       const key = kv[1].toUpperCase(), val = kv[2].trim();
-      if (key === "TYPE") out.type = val.toLowerCase();
+      if (key === "TYPE") { const v = val.toLowerCase().split(/\s/)[0]; out.type = EE_TYPES.includes(v) ? v : ""; }
       if (key === "SCORE") { const n = parseFloat(val.replace(",", ".")); if (!isNaN(n)) out.score = Math.max(0, Math.min(10, n)); }
       if (key === "LEVEL") out.level = (val.match(/[ABC][12]/i) || [""])[0].toUpperCase();
-      if (key === "VERDICT") out.verdict = /defeat/i.test(val) ? "win" : "lose";
-      if (key === "BOSS") out.boss = val.toLowerCase();
+      if (key === "VERDICT") out.verdict = /\b(try|again|not|undefeated|lose|lost|fail)\b|n't/i.test(val) ? "lose" : /\bdefeated\b/i.test(val) ? "win" : "lose";
+      if (key === "BOSS") out.boss = val.toLowerCase().split(/\s/)[0];
       if (key === "LESSON") out.lesson = parseInt(val, 10) || null;
       section = null; continue;
     }
-    if (/^WORDS\s*:?\s*$/i.test(line)) { section = "w"; continue; }
-    if (/^MISTAKES\s*:?\s*$/i.test(line)) { section = "m"; continue; }
-    const l2 = line.replace(/^(\d+[.)]\s+|[-•*]\s+)/, "");
-    if (/^\(.*\)$/.test(l2) || /^none$/i.test(l2)) continue;
-    if (section === "w") parsePairs(l2).forEach((p) => out.words.push(p));
+    if (/^WORDS\b[^:]*:?\s*$/i.test(line)) { section = "w"; continue; }
+    if (/^MISTAKES\b[^:]*:?\s*$/i.test(line)) { section = "m"; continue; }
+    if (/^\(.*\)$/.test(line) || /^none\.?$/i.test(line)) continue;
+    if (section === "w") parsePairs(line).forEach((p) => out.words.push(p));
     if (section === "m") {
-      const parts = l2.replace(/[❌✅]/g, "").split(/\s*(?:=>|→|->)\s*/);
+      const parts = line.replace(/[❌✅]/g, "").split(/\s*(?:=>|→|->)\s*/);
       if (parts.length >= 2) {
         const [right, ...why] = parts.slice(1).join(" ").split(/\s*\|\s*/);
         out.mistakes.push({ wrong: parts[0].trim(), right: right.trim(), why: why.join(" ").trim() });
       }
     }
   }
-  return out;
+  out.fp = body.replace(/\s+/g, " ").trim().toLowerCase();
+  const real = out.score !== null || out.level || out.verdict || out.words.length || out.mistakes.length;
+  return real ? out : null;
+}
+// Берём последний настоящий блок (шаблоны из заданий пропускаем)
+function parseEE(raw) {
+  const t = String(raw).replace(/\r/g, "").replace(/```[a-z]*\n?/gi, "");
+  const starts = [];
+  for (let i = t.indexOf("#EE"); i >= 0; i = t.indexOf("#EE", i + 1)) starts.push(i);
+  for (let k = starts.length - 1; k >= 0; k--) {
+    let body = t.slice(starts[k] + 3);
+    const nx = body.indexOf("#EE"); if (nx >= 0) body = body.slice(0, nx);
+    const j = body.indexOf("#END"); if (j >= 0) body = body.slice(0, j);
+    const d = parseEEBlock(body);
+    if (d) return d;
+  }
+  return null;
 }
 
 function applyEE(d, ctx = {}) {
   const lines = [];
   const type = ctx.type || d.type || "talk";
+  const key = [type, ctx.boss || d.boss || "", ctx.lesson || d.lesson || "", d.fp].join("|");
+  if (S.imported.includes(key)) return ["Этот итог уже загружен — повторно не засчитывается"];
+  S.imported.push(key);
+  if (S.imported.length > 300) S.imported.shift();
+
   let w = 0, m = 0;
   d.words.forEach((p) => addCustom(p.en, p.ru) && w++);
   d.mistakes.forEach((x) => addMistake(x.wrong, x.right, x.why) && m++);
@@ -426,20 +480,28 @@ function applyEE(d, ctx = {}) {
   if (m) lines.push(`✏️ ${m} ${plural(m, "ошибка", "ошибки", "ошибок")} в колоду «Ошибки»`);
   if (d.score !== null && type !== "test") { S.scores.push({ day: today(), type, score: d.score }); lines.push(`📈 Оценка: ${d.score}/10`); }
 
-  if (type === "talk") {
-    if (!dayRec().m.talk) { completeMission("talk"); lines.push("✅ Разговор засчитан"); }
-    else lines.push("Разговор сегодня уже засчитан — слова и ошибки добавлены");
+  if (type === "talk" || type === "read") {
+    const id = type;
+    if (!dayRec().m[id]) { completeMission(id); lines.push(id === "talk" ? "✅ Разговор засчитан" : "✅ Чтение засчитано"); }
+    else lines.push(`${id === "talk" ? "Разговор" : "Чтение"} сегодня уже засчитано — слова и ошибки добавлены`);
   }
   if (type === "boss") {
     const i = BOSSES.findIndex((b) => b.id === (ctx.boss || d.boss));
     if (i < 0) lines.push("⚠️ Не поняла, какой это босс");
+    else if (!d.verdict) lines.push("⚠️ Нет вердикта (VERDICT: DEFEATED или TRY AGAIN)");
     else {
       const b = BOSSES[i], r = S.bosses[b.id] || { tries: 0 };
       r.tries = (r.tries || 0) + 1; r.score = d.score;
-      if (d.verdict === "win" && bossState(i) !== "locked") {
+      const win = d.verdict === "win" && (d.score === null || d.score >= 7);
+      if (win && bossState(i) !== "locked") {
         if (!r.won) { r.won = today(); S.xp += 150; lines.push(`🏆 ${b.title} — побеждён! +150 XP`); buzz(); }
         else lines.push(`🏆 ${b.title} — снова победа!`);
-      } else { S.xp += 20; lines.push(`💪 ${b.title}: пока не побеждён. +20 XP за попытку`); }
+      } else {
+        const first = r.lastTry !== today();
+        if (first) S.xp += 20;
+        lines.push(`💪 ${b.title}: пока не побеждён${first ? ". +20 XP за попытку" : ""}`);
+      }
+      r.lastTry = today();
       S.bosses[b.id] = r;
     }
   }
@@ -495,7 +557,8 @@ function importModal(ctx = {}, title = "Вставить итог от Claude") 
 }
 const eeHead = (ctx) => ctx.type === "boss" ? `TYPE: boss\nBOSS: ${ctx.boss}\nVERDICT: <DEFEATED or TRY AGAIN>\nSCORE: <0-10>`
   : ctx.type === "hw" ? `TYPE: hw\nLESSON: ${ctx.lesson}\nSCORE: <0-10>`
-  : ctx.type === "test" ? `TYPE: test\nLEVEL: <A1/A2/B1/B2/C1>` : `TYPE: talk\nSCORE: <0-10>`;
+  : ctx.type === "test" ? `TYPE: test\nLEVEL: <A1/A2/B1/B2/C1>`
+  : ctx.type === "read" ? `TYPE: read\nSCORE: <0-10>` : `TYPE: talk\nSCORE: <0-10>`;
 
 // ---------- Тексты для Claude ----------
 const lvl = () => (S.profile && S.profile.level) || "A2";
@@ -623,7 +686,7 @@ const weekNo = () => Math.min(Math.max(1, Math.floor(diffDays(S.profile.startDat
 const currentWeek = () => PLAN[weekNo() - 1];
 // Уровень, до которого идёт материал (диктант, чтение): по плану и по тесту
 const weekLevel = () => (weekNo() <= 8 ? "A2" : weekNo() <= 16 ? "B1" : "B2");
-const targetLevel = () => { const a = LEVELS.indexOf(lvl()), b = LEVELS.indexOf(weekLevel()); return LEVELS[Math.max(a < 0 ? 0 : a, b)]; };
+const targetLevel = () => { const l = lvl(), a = /^C/.test(l) ? LEVELS.length - 1 : Math.max(0, LEVELS.indexOf(l)), b = LEVELS.indexOf(weekLevel()); return LEVELS[Math.max(a, b)]; };
 
 // ---------- Экраны ----------
 let tab = "today";
@@ -649,7 +712,7 @@ function missionAction(id) {
   if (id === "words") { wordsSeg = "cards"; go("words"); }
   if (id === "grammar") { lessonsSeg = "grammar"; const nl = nextLesson(); nl && !passedLessons().length ? startLesson(nl.n) : go("lessons"); }
   if (id === "listen") { listenSeg = "dict"; go("listen"); }
-  if (id === "read") { lessonsSeg = "reading"; const r = recommendedText(); RV = r ? { id: r.id, answers: {}, checked: false, gl: null } : null; go("lessons"); }
+  if (id === "read") { lessonsSeg = "reading"; const r = recommendedText(); RV = r ? { id: r.id, answers: {}, checked: false, gl: null, day: today() } : null; go("lessons"); }
   if (id === "series") openSeriesProof();
   if (id === "talk") openTalk();
   if (id === "report") promptModal("Отчёт для строгого коуча", reportText(), { after: () => { completeMission("report"); render(); } });
@@ -762,12 +825,13 @@ function openSeriesProof() {
   const cur = SERIES.find((s) => s.id === S.current);
   if (!cur) { toast("Сначала выбери сериал"); listenSeg = "series"; return go("listen"); }
   let shadowSec = 0;
+  const dr = S.seriesDraft && S.seriesDraft.id === cur.id ? S.seriesDraft : { id: cur.id, phr: "", sum: "" };
   openModal(`<h2 style="margin-top:0">${cur.emoji} ${esc(cur.title)}</h2>
     <p class="small muted">Серия засчитывается, когда ты запишешь минимум 3 фразы и короткий пересказ. Так слова остаются в голове, а не в сериале.</p>
     <label>3+ фразы из серии: english — русский</label>
-    <textarea id="sp-phr" placeholder="I'm on it — уже занимаюсь&#10;What's going on? — что происходит?&#10;No way! — да ладно!"></textarea>
+    <textarea id="sp-phr" placeholder="I'm on it — уже занимаюсь&#10;What's going on? — что происходит?&#10;No way! — да ладно!">${esc(dr.phr)}</textarea>
     <label>Что произошло? 2–3 предложения по-английски</label>
-    <textarea id="sp-sum" placeholder="In this episode, ..."></textarea>
+    <textarea id="sp-sum" placeholder="In this episode, ...">${esc(dr.sum)}</textarea>
     <p class="small muted" id="sp-cnt" style="margin:4px 0 0">0 фраз · 0 слов</p>
     <div class="card flat" style="margin-top:12px">
       <h3>🎙 Shadowing — бонус +10 XP</h3>
@@ -781,8 +845,12 @@ function openSeriesProof() {
       <button class="btn block" id="sp-claude">Проверить пересказ у Claude</button>
       <button class="btn ghost block" id="sp-cl">Закрыть</button>
     </div>`, (el) => {
-    const upd = () => { $("#sp-cnt", el).textContent = `${parsePairs($("#sp-phr", el).value).length} фраз (нужно 3) · ${wordCount($("#sp-sum", el).value)} слов (нужно 10)`; };
-    $("#sp-phr", el).oninput = upd; $("#sp-sum", el).oninput = upd;
+    const upd = () => {
+      const phr = $("#sp-phr", el).value, sum = $("#sp-sum", el).value;
+      S.seriesDraft = { id: cur.id, phr, sum }; save();
+      $("#sp-cnt", el).textContent = `${parsePairs(phr).length} фраз (нужно 3) · ${wordCount(sum)} слов (нужно 10)`;
+    };
+    $("#sp-phr", el).oninput = upd; $("#sp-sum", el).oninput = upd; upd();
     recorder = makeRecorder((url, sec) => {
       shadowSec = sec;
       const a = $("#sp-audio", el); if (!a) return;
@@ -808,6 +876,7 @@ function openSeriesProof() {
       let added = 0; pairs.forEach((p) => addCustom(p.en, p.ru) && added++);
       S.series[cur.id] = (S.series[cur.id] || 0) + 1;
       S.seriesLog.push({ day: today(), id: cur.id, phrases: pairs.length, summary: sum.slice(0, 600) });
+      S.seriesDraft = null;
       if (shadowSec >= 15 && !S.shadowDays.includes(today())) { S.shadowDays.push(today()); S.xp += 10; }
       save(); closeModal();
       if (!dayRec().m.series) completeMission("series"); else toast(`Серия сохранена · +${added} в карточки`);
@@ -976,7 +1045,7 @@ function startDictation() {
   const known = shuffle(pool.filter((p) => p.card && S.cards[p.card.id]));
   const rest = shuffle(pool.filter((p) => !(p.card && S.cards[p.card.id])));
   const items = known.slice(0, 6).concat(rest).slice(0, DICT_LEN);
-  DV = { items: shuffle(items), idx: 0, typed: "", checked: false, accs: [] };
+  DV = { items: shuffle(items), idx: 0, typed: "", checked: false, accs: [], day: today() };
   render();
   speak(DV.items[0].text);
 }
@@ -1040,12 +1109,16 @@ function viewDictation() {
       <button class="btn primary block" data-act="dict-check" style="margin-top:10px">Проверить</button>`}`;
 }
 
-let SH = { recs: {}, rec: null, active: null };
+const newSH = () => ({ day: today(), recs: {}, rec: null, active: null });
+let SH = newSH();
+// записи shadowing живут один день
+function curSH() { if (SH.day !== today() && !(SH.rec && SH.rec.active)) SH = newSH(); return SH; }
 function shadowPhrases() {
   const allowed = LEVELS.slice(0, LEVELS.indexOf(targetLevel()) + 1);
   return seeded(DICT_POOL.filter((p) => allowed.includes(p.level)), dayIndex()).slice(0, 5);
 }
 function viewShadow() {
+  curSH();
   const list = shadowPhrases();
   const done = Object.keys(SH.recs).length;
   const bonus = S.shadowDays.includes(today());
@@ -1121,7 +1194,7 @@ let LV = null;
 
 function startLesson(n, stage = "learn") {
   const l = COURSE.find((x) => x.n === n);
-  LV = { mode: "lesson", n, stage, items: l.exercises.map((e) => ({ ...e, from: n })), idx: 0, ok: 0, wrong: [] };
+  LV = { mode: "lesson", n, stage, items: l.exercises.map((e) => ({ ...e, from: n })), idx: 0, ok: 0, wrong: [], day: today() };
   lessonsSeg = "grammar"; prepItem(); tab = "lessons"; window.scrollTo(0, 0); render();
 }
 // Доп. практика по одному уроку — свежие задания из расширенного набора
@@ -1129,7 +1202,7 @@ function startExtra(n) {
   const l = COURSE.find((x) => x.n === n);
   const extra = EXTRA_EX[n] || [];
   const items = shuffle(extra.length >= 8 ? extra : lessonPool(l)).slice(0, 12).map((e) => ({ ...e, from: n }));
-  LV = { mode: "extra", n, stage: "practice", items, idx: 0, ok: 0, wrong: [] };
+  LV = { mode: "extra", n, stage: "practice", items, idx: 0, ok: 0, wrong: [], day: today() };
   lessonsSeg = "grammar"; prepItem(); tab = "lessons"; window.scrollTo(0, 0); render();
 }
 function startReview() {
@@ -1142,7 +1215,7 @@ function startReview() {
   });
   const seen = new Set(), items = [];
   for (const e of shuffle(pool)) { const key = e.from + e.q; if (!seen.has(key)) { seen.add(key); items.push(e); } if (items.length >= 12) break; }
-  LV = { mode: "review", stage: "practice", items, idx: 0, ok: 0, wrong: [] };
+  LV = { mode: "review", stage: "practice", items, idx: 0, ok: 0, wrong: [], day: today() };
   lessonsSeg = "grammar"; prepItem(); tab = "lessons"; window.scrollTo(0, 0); render();
 }
 function prepItem() {
@@ -1172,7 +1245,7 @@ function finishPractice() {
     r.best = Math.max(r.best, LV.pct);
     if (firstPass) { r.passed = today(); S.xp += 40; setTimeout(() => { buzz(); toast("Урок пройден! +40 XP"); }, 300); }
   }
-  completeMission("grammar");
+  completeMission("grammar", LV.day);
   save(); window.scrollTo(0, 0); render();
 }
 
@@ -1385,7 +1458,7 @@ function readerScreen() {
 function readClaudePrompt() {
   return `Hi Claude! Write me a short, interesting reading text in English at ${targetLevel()} level (${targetLevel() === "A2" ? "150" : targetLevel() === "B1" ? "250" : "350"} words) about something I'd enjoy (Marvel, Netflix series, travel, psychology, work — surprise me). Then give 5 comprehension questions (a/b/c), wait for my answers and check them. After that, give me 8 useful words from the text.
 
-${EE_FORMAT("TYPE: talk\nSCORE: <0-10 for my answers>")}`;
+${EE_FORMAT("TYPE: read\nSCORE: <0-10 for my answers>")}`;
 }
 
 // --- Боссы ---
@@ -1482,8 +1555,8 @@ function forecast() {
 function scoreChart() {
   const sc = S.scores.slice(-20);
   if (!sc.length) return `<p class="small muted" style="margin:0">Появится после первого разговора с итогом #EE.</p>`;
-  const avg = (sc.reduce((a, s) => a + s.score, 0) / sc.length).toFixed(1);
-  return `<div class="chart">${sc.map((s) => `<div class="col" title="${fmtDate(s.day)} · ${s.type} · ${s.score}/10"><i style="height:${s.score * 10}%"></i></div>`).join("")}</div>
+  const avg = (sc.reduce((a, s) => a + (Number(s.score) || 0), 0) / sc.length).toFixed(1);
+  return `<div class="chart">${sc.map((s) => `<div class="col" title="${esc(fmtDate(s.day) + " · " + s.type + " · " + s.score + "/10")}"><i style="height:${Math.max(0, Math.min(10, Number(s.score) || 0)) * 10}%"></i></div>`).join("")}</div>
     <p class="small muted" style="margin:8px 0 0">Последние ${sc.length} · среднее ${avg}/10</p>`;
 }
 function viewProgress() {
@@ -1549,12 +1622,12 @@ function viewProgress() {
     <h2>Напоминание</h2>
     <div class="card">
       <p class="small muted">Добавь ежедневное событие в Календарь iPhone — он будет напоминать о занятии каждый день.</p>
-      <div class="row"><input type="time" id="rem-time" value="${esc(S.remindTime)}" style="flex:1"><button class="btn primary" data-act="remind">Добавить в Календарь</button></div>
+      <div class="row"><select id="rem-time" style="flex:1">${REMIND_TIMES.map((t) => `<option ${t === S.remindTime ? "selected" : ""}>${t}</option>`).join("")}</select><button class="btn primary" data-act="remind">Добавить в Календарь</button></div>
     </div>
     <h2>Настройки</h2>
     <div class="card">
       <label>Имя</label><input type="text" id="p-name" value="${esc(nm())}">
-      <label>Уровень</label><select id="p-level">${["A1", "A2", "B1", "B2", "C1"].map((l) => `<option ${l === lvl() ? "selected" : ""}>${l}</option>`).join("")}</select>
+      <label>Уровень</label><select id="p-level">${["A1", "A2", "B1", "B2", "C1", "C2"].map((l) => `<option ${l === lvl() ? "selected" : ""}>${l}</option>`).join("")}</select>
       <label>Темп — новых слов в день</label><select id="p-pace">${paceOptions(pace())}</select>
       <label>Моя цель (например, поездка)</label><input type="text" id="p-goal" value="${esc(S.profile.goalText || "")}" placeholder="Поездка в Лондон">
       <label>Дата цели</label><input type="date" id="p-date" value="${esc(S.profile.goalDate || "")}">
@@ -1576,6 +1649,8 @@ function viewProgress() {
     <p class="small muted center" style="margin-top:16px">EnglishEasy</p>`;
 }
 
+// Время напоминаний: файлы ics/remind-HHMM.ics лежат на сайте
+const REMIND_TIMES = (() => { const out = []; for (let h = 6; h <= 23; h++) for (const m of ["00", "30"]) out.push(`${pad(h)}:${m}`); return out; })();
 function reminderICS(time) {
   const [h, m] = (time || "19:00").split(":");
   const d = today().replace(/-/g, "");
@@ -1606,7 +1681,7 @@ function bind(root) {
     if (!confirm("Убрать эту ошибку из колоды?")) return;
     S.mistakes = S.mistakes.filter((m) => m.id !== b.dataset.delm); delete S.cards[b.dataset.delm]; save(); render();
   }));
-  root.querySelectorAll("[data-text]").forEach((b) => (b.onclick = () => { RV = { id: b.dataset.text, answers: {}, checked: false, gl: null }; window.scrollTo(0, 0); render(); }));
+  root.querySelectorAll("[data-text]").forEach((b) => (b.onclick = () => { RV = { id: b.dataset.text, answers: {}, checked: false, gl: null, day: today() }; window.scrollTo(0, 0); render(); }));
   root.querySelectorAll("[data-gl]").forEach((b) => (b.onclick = () => { RV.gl = Number(b.dataset.gl); const t = TEXTS_ALL.find((x) => x.id === RV.id); speak(t.glossary[RV.gl].en); render(); }));
   root.querySelectorAll("[data-rq]").forEach((b) => (b.onclick = () => { RV.answers[Number(b.dataset.rq)] = b.dataset.ro; const y = window.scrollY; render(); window.scrollTo(0, y); }));
   root.querySelectorAll("[data-extra]").forEach((b) => (b.onclick = () => startExtra(Number(b.dataset.extra))));
@@ -1616,7 +1691,9 @@ function bind(root) {
   root.querySelectorAll("[data-shrec]").forEach((b) => (b.onclick = async () => {
     const i = Number(b.dataset.shrec);
     if (SH.rec && SH.rec.active) { SH.rec.stop(); return; }
+    curSH();
     SH.rec = makeRecorder((url) => {
+      if (SH.day !== today()) SH = newSH();
       SH.recs[i] = url; SH.active = null;
       if (Object.keys(SH.recs).length >= 3 && !S.shadowDays.includes(today())) { S.shadowDays.push(today()); S.xp += 10; save(); toast("Shadowing: +10 XP"); }
       render();
@@ -1625,9 +1702,9 @@ function bind(root) {
   }));
   bindLessons(root);
   const ci = $("#c-in", root);
-  if (ci) { ci.oninput = () => (session.typed = ci.value); ci.onkeydown = (ev) => { if (ev.key === "Enter") actions["c-check"](); }; setTimeout(() => ci.focus({ preventScroll: true }), 50); }
+  if (ci) { ci.oninput = () => (session.typed = ci.value); ci.onkeydown = (ev) => { if (ev.key === "Enter") actions["c-check"](); }; ci.focus({ preventScroll: true }); }
   const di = $("#d-in", root);
-  if (di) { di.oninput = () => (DV.typed = di.value); di.onkeydown = (ev) => { if (ev.key === "Enter") actions["dict-check"](); }; setTimeout(() => di.focus({ preventScroll: true }), 50); }
+  if (di) { di.oninput = () => (DV.typed = di.value); di.onkeydown = (ev) => { if (ev.key === "Enter") actions["dict-check"](); }; di.focus({ preventScroll: true }); }
   const ri = $("#restore-input", root);
   if (ri) ri.onchange = () => {
     const f = ri.files[0]; if (!f) return;
@@ -1647,7 +1724,7 @@ function bindLessons(root) {
   if (inp && !LV.checked) {
     inp.oninput = () => (LV.typed = inp.value);
     inp.onkeydown = (ev) => { if (ev.key === "Enter") actions["l-check-in"](); };
-    setTimeout(() => inp.focus({ preventScroll: true }), 50);
+    inp.focus({ preventScroll: true });
   }
   const hw = $("#hw-text", root);
   if (hw) hw.oninput = () => { lessonRec(Number(hw.dataset.hw)).draft = hw.value; save(); };
@@ -1664,7 +1741,7 @@ function gradeCurrent(g) {
   session.count++;
   if (g === "again") session.queue.push({ ...c, isNew: false, mode: c.kind === "fix" ? "fix" : "recognize" });
   session.idx++; session.shown = false; session.checked = false; session.typed = ""; session.verdict = null;
-  if (session.idx >= session.queue.length) completeMission("words");
+  if (session.idx >= session.queue.length) completeMission("words", session.day);
   render();
 }
 
@@ -1688,7 +1765,7 @@ const actions = {
   // карточки
   "start-cards": () => {
     const q = buildQueue().queue.map((c) => ({ ...c, mode: cardMode(c) }));
-    session = { queue: q, idx: 0, shown: false, count: 0, typed: "", checked: false, verdict: null };
+    session = { queue: q, idx: 0, shown: false, count: 0, typed: "", checked: false, verdict: null, day: today() };
     render();
   },
   show: () => { session.shown = true; render(); const c = session.queue[session.idx]; if (c) speak(c.en); },
@@ -1732,7 +1809,7 @@ const actions = {
       const avg = (DV.accs.reduce((a, b) => a + b, 0) / DV.accs.length) * 100;
       S.listen.acc = (S.listen.acc * S.listen.sessions + avg) / (S.listen.sessions + 1);
       S.listen.sessions++;
-      completeMission("listen"); save(); render();
+      completeMission("listen", DV.day); save(); render();
     } else { render(); speak(DV.items[DV.idx].text); }
   },
   "dict-end": () => { DV = null; render(); },
@@ -1751,15 +1828,15 @@ const actions = {
     if (Object.keys(RV.answers).length < t.questions.length) return toast("Ответь на все вопросы");
     RV.checked = true;
     const score = t.questions.filter((q, i) => RV.answers[i] === q.answer).length;
-    if (score >= 3) { S.reads[t.id] = { score: Math.max(score, (S.reads[t.id] || {}).score || 0), day: today() }; completeMission("read"); }
+    if (score >= 3) { S.reads[t.id] = { score: Math.max(score, (S.reads[t.id] || {}).score || 0), day: today() }; completeMission("read", RV.day); }
     save(); render();
   },
-  "r-retry": () => { RV.answers = {}; RV.checked = false; window.scrollTo(0, 0); render(); },
+  "r-retry": () => { RV.answers = {}; RV.checked = false; RV.day = today(); window.scrollTo(0, 0); render(); },
   "r-discuss": () => {
     const t = TEXTS_ALL.find((x) => x.id === RV.id);
     promptModal("Обсудить текст", talkPrompt(t.discuss, `I just read a text called "${t.title}". Short version of it:\n"""\n${t.text.slice(0, 900)}\n"""\nLet's discuss it.`), { importCtx: { type: "talk" } });
   },
-  "read-claude": () => promptModal("Текст от Claude", readClaudePrompt(), { importCtx: { type: "talk" } }),
+  "read-claude": () => promptModal("Текст от Claude", readClaudePrompt(), { importCtx: { type: "read" } }),
   // уроки
   "l-close": () => { LV = null; window.scrollTo(0, 0); render(); },
   "l-learn": () => startLesson(LV.n, "learn"),
@@ -1771,8 +1848,9 @@ const actions = {
   remind: () => {
     const t = $("#rem-time").value || "19:00";
     S.remindTime = t; save();
-    downloadFile("englisheasy-reminder.ics", reminderICS(t), "text/calendar");
-    toast("Открой файл и нажми «Добавить» в Календаре");
+    // iPhone сам предложит добавить событие, если открыть .ics по ссылке
+    window.open(new URL(`ics/remind-${t.replace(":", "")}.ics`, location.href).href, "_blank");
+    toast("Нажми «Добавить» в окне Календаря");
   },
   "save-profile": () => {
     S.profile.name = $("#p-name").value.trim() || S.profile.name;
@@ -1783,8 +1861,10 @@ const actions = {
     save(); toast("Сохранено"); render();
   },
   "backup-file": () => {
-    downloadFile(`englisheasy-backup-${today()}.json`, JSON.stringify(S), "application/json");
-    S.lastBackup = today(); save(); toast("Файл сохранён"); render();
+    saveFile(`englisheasy-backup-${today()}.json`, JSON.stringify(S), "application/json").then((ok) => {
+      if (ok) { S.lastBackup = today(); save(); toast("Резервная копия сохранена"); render(); }
+      else if (ok === null) toast("Если файл не сохранился — используй «Скопировать код»");
+    });
   },
   "restore-file": () => $("#restore-input").click(),
   export: () => {

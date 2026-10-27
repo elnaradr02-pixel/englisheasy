@@ -1,0 +1,21 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//EnglishEasy//RU
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VEVENT
+UID:englisheasy-daily-1100@englisheasy
+DTSTAMP:20261027T000000Z
+DTSTART:20261027T110000
+DURATION:PT1H30M
+RRULE:FREQ=DAILY
+SUMMARY:English — EnglishEasy
+DESCRIPTION:Карточки\, урок\, диктант\, чтение\, серия\, разговор\, отчёт. https://elnaradr02-pixel.github.io/englisheasy/
+URL:https://elnaradr02-pixel.github.io/englisheasy/
+BEGIN:VALARM
+TRIGGER:PT0M
+ACTION:DISPLAY
+DESCRIPTION:Время английского!
+END:VALARM
+END:VEVENT
+END:VCALENDAR

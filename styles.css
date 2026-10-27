@@ -12,6 +12,11 @@
   --warn: #b0863f;
   --bad: #b5654a;
   --radius: 16px;
+  --tabbar-bg: rgba(247, 246, 243, 0.92);
+  --good-bg: #e9efea; --good-line: rgba(94, 140, 106, 0.3); --good-soft: rgba(94, 140, 106, 0.15); --good-banner: #f1f5f2; --good-banner-line: rgba(94, 140, 106, 0.2);
+  --bad-bg: #f5ebe7; --bad-line: rgba(181, 101, 74, 0.28); --bad-soft: rgba(181, 101, 74, 0.13); --bad-banner: #f8f1ef; --bad-banner-line: rgba(181, 101, 74, 0.2);
+  --warn-bg: #f5efe6; --warn-line: rgba(176, 134, 63, 0.28);
+  --heat-1: #bac2bc; --heat-2: #7c8e86; --heat-fz: #acc4d7;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -26,6 +31,11 @@
     --good: #8fb89a;
     --warn: #d0aa66;
     --bad: #d08b73;
+    --tabbar-bg: rgba(20, 20, 19, 0.92);
+    --good-bg: #2c322c; --good-line: rgba(143, 184, 154, 0.3); --good-soft: rgba(143, 184, 154, 0.15); --good-banner: #262a26; --good-banner-line: rgba(143, 184, 154, 0.2);
+    --bad-bg: #332a26; --bad-line: rgba(208, 139, 115, 0.28); --bad-soft: rgba(208, 139, 115, 0.13); --bad-banner: #2c2622; --bad-banner-line: rgba(208, 139, 115, 0.2);
+    --warn-bg: #332e24; --warn-line: rgba(208, 170, 102, 0.28);
+    --heat-1: #49514c; --heat-2: #73857c; --heat-fz: #5b7387;
   }
 }
 
@@ -51,7 +61,7 @@ button { cursor: pointer; }
 .tabbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
   display: flex; justify-content: center;
-  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  background: var(--tabbar-bg);
   backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
   border-top: 1px solid var(--line);
   padding: 8px 6px calc(env(safe-area-inset-bottom) + 6px);
@@ -112,9 +122,9 @@ p { margin: 0 0 8px; }
 }
 .btn:active { opacity: 0.7; }
 .btn.primary { background: var(--text); border-color: var(--text); color: var(--bg); }
-.btn.good { background: color-mix(in srgb, var(--good) 14%, var(--card)); border-color: color-mix(in srgb, var(--good) 30%, transparent); color: var(--good); }
-.btn.bad { background: color-mix(in srgb, var(--bad) 13%, var(--card)); border-color: color-mix(in srgb, var(--bad) 28%, transparent); color: var(--bad); }
-.btn.warn { background: color-mix(in srgb, var(--warn) 13%, var(--card)); border-color: color-mix(in srgb, var(--warn) 28%, transparent); color: var(--warn); }
+.btn.good { background: var(--good-bg); border-color: var(--good-line); color: var(--good); }
+.btn.bad { background: var(--bad-bg); border-color: var(--bad-line); color: var(--bad); }
+.btn.warn { background: var(--warn-bg); border-color: var(--warn-line); color: var(--warn); }
 .btn.ghost { background: transparent; }
 .btn.white { background: var(--card-2); border-color: transparent; }
 .btn.block { width: 100%; }
@@ -146,15 +156,15 @@ p { margin: 0 0 8px; }
   font-size: 12px; font-weight: 600; background: var(--card-2); color: var(--muted);
 }
 .pill.accent { background: var(--accent-soft); color: var(--accent); }
-.pill.good { background: color-mix(in srgb, var(--good) 15%, transparent); color: var(--good); }
-.pill.red { background: color-mix(in srgb, var(--bad) 13%, transparent); color: var(--bad); }
+.pill.good { background: var(--good-soft); color: var(--good); }
+.pill.red { background: var(--bad-soft); color: var(--bad); }
 
 .banner {
   border-radius: 14px; padding: 12px 14px; margin-bottom: 10px;
   font-weight: 550; font-size: 14px; border: 1px solid transparent;
 }
-.banner.bad { background: color-mix(in srgb, var(--bad) 9%, var(--card)); color: var(--bad); border-color: color-mix(in srgb, var(--bad) 20%, transparent); }
-.banner.good { background: color-mix(in srgb, var(--good) 9%, var(--card)); color: var(--good); border-color: color-mix(in srgb, var(--good) 20%, transparent); }
+.banner.bad { background: var(--bad-banner); color: var(--bad); border-color: var(--bad-banner-line); }
+.banner.good { background: var(--good-banner); color: var(--good); border-color: var(--good-banner-line); }
 .banner.info { background: var(--accent-soft); color: var(--accent); }
 
 /* Segmented control */
@@ -206,10 +216,10 @@ label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); 
 /* Heatmap */
 .heat { display: grid; grid-template-columns: repeat(12, 1fr); grid-auto-flow: column; grid-template-rows: repeat(7, 1fr); gap: 4px; }
 .heat i { aspect-ratio: 1; border-radius: 3px; background: var(--card-2); }
-.heat i.l1 { background: color-mix(in srgb, var(--accent) 30%, var(--card-2)); }
-.heat i.l2 { background: color-mix(in srgb, var(--accent) 65%, var(--card-2)); }
+.heat i.l1 { background: var(--heat-1); }
+.heat i.l2 { background: var(--heat-2); }
 .heat i.l3 { background: var(--accent); }
-.heat i.fz { background: color-mix(in srgb, #7fa7c9 60%, var(--card-2)); }
+.heat i.fz { background: var(--heat-fz); }
 .heat i.today { outline: 1.5px solid var(--text); outline-offset: 1px; }
 
 /* Grammar cheat sheets */
@@ -273,7 +283,7 @@ details.card li { margin-bottom: 6px; }
 
 /* Диктант: подсветка слов */
 .w-ok { color: var(--good); }
-.w-bad { color: var(--bad); text-decoration: underline wavy color-mix(in srgb, var(--bad) 50%, transparent); text-underline-offset: 4px; }
+.w-bad { color: var(--bad); text-decoration: underline wavy var(--bad-line); text-underline-offset: 4px; }
 
 /* Чтение */
 .reader p { font-size: 17px; line-height: 1.7; margin: 0 0 14px; }
