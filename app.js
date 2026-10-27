@@ -514,9 +514,9 @@ function viewCards() {
       ${(!reverse || session.shown) ? `<button class="speak" data-speak="${esc(c.en)}">🔊</button>` : ""}
     </div>
     ${session.shown
-      ? `<div class="btns"><button class="btn bad" data-grade="again">Не помню</button><button class="btn warn" data-grade="hard">Трудно</button><button class="btn good" data-grade="good">Помню</button></div>`
+      ? `<div class="btns"><button class="btn bad" data-grade="again">Забыла</button><button class="btn warn" data-grade="hard">Трудно</button><button class="btn good" data-grade="good">Помню</button></div>`
       : `<button class="btn primary block" data-act="show">Показать ответ</button>`}
-    <p class="small muted center" style="margin-top:10px">Произнеси вслух, прежде чем открыть ответ 🗣️</p>`;
+    <p class="small muted center" style="margin-top:10px">Произнеси вслух, прежде чем открыть ответ</p>`;
 }
 
 function viewMine() {

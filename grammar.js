@@ -1587,7 +1587,9 @@ const LESSONS = [
      "We are meeting Monica at the cafe on Saturday.",
      "On Saturday we are meeting Monica at the cafe.",
      "We're meeting Monica at the cafe on Saturday.",
-     "On Saturday we're meeting Monica at the cafe."
+     "On Saturday we're meeting Monica at the cafe.",
+     "We are meeting Monica on Saturday at the cafe.",
+     "We're meeting Monica on Saturday at the cafe."
     ],
     "explain": "Договорённость — Present Continuous, плюс at the cafe и on Saturday из урока 8."
    }
@@ -4582,7 +4584,8 @@ const LESSONS = [
     "options": [],
     "answer": [
      "If I hadn't quit I would be rich now.",
-     "I would be rich now if I hadn't quit."
+     "I would be rich now if I hadn't quit.",
+     "If I hadn't quit I would now be rich."
     ],
     "explain": "Причина в прошлом (hadn't quit), результат сейчас (would be ... now): это смешанный тип."
    }
@@ -5422,7 +5425,8 @@ const LESSONS = [
     "options": [],
     "answer": [
      "whereas",
-     "while"
+     "while",
+     "whilst"
     ],
     "explain": "Сравниваешь двух разных героев, поэтому нужно whereas (или while)."
    },
@@ -5654,7 +5658,8 @@ const LESSONS = [
     "q": "Не подскажете, есть ли поблизости аптека?",
     "options": [],
     "answer": [
-     "Do you know if there is a pharmacy nearby?"
+     "Do you know if there is a pharmacy nearby?",
+     "Do you know if there is a nearby pharmacy?"
     ],
     "explain": "«есть ли» = if there is, порядок прямой."
    }
