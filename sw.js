@@ -1,6 +1,6 @@
 // Офлайн-кэш. При обновлении приложения поменяй версию.
-const CACHE = "englisheasy-v9";
-const FILES = ["./", "index.html", "cozy.css", "course-data.js", "cozy.js", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png", "art/cable-car-afternoon.svg","art/ferry-pier-morning.svg","art/harbor-noon.svg","art/lane-windy-dusk.svg","art/paper-boat-night.svg","art/shop-bright-morning.svg","art/shop-dusty-day.svg","art/shop-night-lamp.svg","art/stair-lane-afternoon.svg","art/steam-garden-morning.svg","art/weather-station-golden.svg"];
+const CACHE = "englisheasy-v10";
+const FILES = ["./", "index.html", "cozy.css", "course-data.js", "audio/index.js", "cozy.js", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png", "art/cable-car-afternoon.svg","art/ferry-pier-morning.svg","art/harbor-noon.svg","art/lane-windy-dusk.svg","art/paper-boat-night.svg","art/shop-bright-morning.svg","art/shop-dusty-day.svg","art/shop-night-lamp.svg","art/stair-lane-afternoon.svg","art/steam-garden-morning.svg","art/weather-station-golden.svg"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));

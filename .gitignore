@@ -1,2 +1,5 @@
-.claude/
+*.env
 .DS_Store
+.claude/
+.env
+tools/voices.local.json

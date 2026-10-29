@@ -62,8 +62,37 @@ function loadVoices() {
   VOICES = { f: en.filter((v) => F.test(v.name)), m: en.filter((v) => M.test(v.name) && !F.test(v.name)), any: en.find((v) => /en-US/i.test(v.lang)) || en[0] || null };
 }
 if (HAS_TTS) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+// Озвучка ElevenLabs: готовые mp3 в audio/ (генерируются заранее, ключа на сайте нет).
+// Если файла нет — запасной вариант, голос устройства.
+const VO = typeof VOICE !== "undefined" ? VOICE : null;
+const VO_HAVE = new Set(VO ? VO.have : []);
+const AU = typeof Audio !== "undefined" ? new Audio() : null;
+function fnv(x) { let h = 0x811c9dc5; for (let i = 0; i < x.length; i++) { h ^= x.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(16).padStart(8, "0"); }
+const cleanText = (t) => String(t).replace(/[—]/g, ", ").replace(/_{2,}/g, "…").replace(/\s+/g, " ").trim();
+function audioFile(who, text) {
+  if (!VO) return null;
+  const voice = VO.voices[who] || VO.voices.narrator;
+  if (!voice) return null;
+  // реплики с именем озвучены с именем из настроек озвучки; если в приложении другое имя — голос устройства
+  if (/\{name\}/.test(text) && S.name && S.name.trim().toLowerCase() !== String(VO.name).toLowerCase()) return null;
+  const t = cleanText(String(text).replace(/\{name\}/g, VO.name));
+  const key = fnv(voice + "|" + t) + t.length.toString(36);
+  return VO_HAVE.has(key) ? `audio/${key}.mp3` : null;
+}
+function hush() { if (HAS_TTS) speechSynthesis.cancel(); if (AU) { AU.pause(); } }
 function say(who, text, force) {
-  if (!HAS_TTS || (!S.voice && !force) || !text) return;
+  if ((!S.voice && !force) || !text) return;
+  hush();
+  const f = audioFile(who, text);
+  if (f && AU) {
+    AU.src = f; AU.playbackRate = S.slow ? 0.85 : 1;
+    const p = AU.play(); if (p && p.catch) p.catch(() => sayTTS(who, text));
+    return;
+  }
+  sayTTS(who, text);
+}
+function sayTTS(who, text) {
+  if (!HAS_TTS) return;
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(nm(text).replace(/[—/]/g, ", ").replace(/_{2,}/g, "…"));
   u.lang = "en-US";
@@ -88,7 +117,7 @@ function makeRecorder(onStop) {
       chunks = []; rec = new MediaRecorder(stream);
       rec.ondataavailable = (e) => e.data && e.data.size && chunks.push(e.data);
       rec.onstop = () => { stream.getTracks().forEach((t) => t.stop()); onStop(URL.createObjectURL(new Blob(chunks, { type: rec.mimeType || "audio/mp4" })), (Date.now() - t0) / 1000); };
-      if (HAS_TTS) speechSynthesis.cancel();
+      hush();
       rec.start(); t0 = Date.now(); return true;
     },
     stop() { if (rec && rec.state === "recording") rec.stop(); },
@@ -119,7 +148,7 @@ function addWordsToSRS(d) {
 
 // ---------- Навигация ----------
 let V = { screen: "home" }; // { screen: 'home' | 'step' | 'done', n, step }
-function go(v) { if (HAS_TTS) speechSynthesis.cancel(); V = v; window.scrollTo(0, 0); render(); }
+function go(v) { hush(); V = v; window.scrollTo(0, 0); render(); }
 function openDay(n) {
   if (needRecall()) return startRecall(n);
   const s = nextStep(n);
@@ -258,7 +287,13 @@ function viewStory() {
          <div class="pctrl"><button class="btn primary block" data-act="answer">Ответить</button></div>`;
   }
   const pop = P.pop ? `<div class="pop row"><div class="grow"><b>${esc(P.pop.emoji || "")} ${esc(P.pop.en)}</b><div class="muted">${esc(P.pop.ru)}</div></div><button class="icon-btn" data-act="popsay">🔊</button><button class="icon-btn" data-act="popclose">✕</button></div>` : "";
-  return `<div class="player">${head}${stage}${ctrl}</div>${pop}`;
+  // подсказки в самом начале курса — что делать на этом экране
+  const firstDay = P.n === DAYS[0].day && !S.days[P.n]?.story;
+  const coach = !firstDay ? "" : b.t === "line" && P.i < 6 ? `<div class="coach">👂 Слушай фразу и читай перевод серым. Нажми <b>«Дальше»</b>${words.length ? ". Подчёркнутое слово можно нажать" : ""}.</div>`
+    : b.t === "choice" ? `<div class="coach">👆 Выбери, что ты скажешь, — нажми на вариант.</div>`
+    : b.t === "check" ? `<div class="coach">🧠 Вопрос на понимание: нажми правильный ответ.</div>`
+    : b.t === "say" ? `<div class="coach">🗣 Напиши или надиктуй ответ по-английски (🎤 на клавиатуре) и нажми «Ответить». Ошибки не страшны.</div>` : "";
+  return `<div class="player">${head}${stage}${coach}${ctrl}</div>${pop}`;
 }
 function sayOk(text, b) { const t = " " + norm(text) + " "; return (b.accept || []).some((a) => { const k = norm(a); return k && t.includes(k); }) || close(text, nm(b.example_en)) >= 0.7; }
 
@@ -283,63 +318,113 @@ function pageHtml(d, opts = {}) {
     <div class="mistake">${esc(nb.rule.mistake)}</div>
   </div>`;
 }
+// Пошаговый блокнот: одно действие за раз
+function nbItems(d) {
+  const nb = d.notebook;
+  return [{ t: "intro" }, ...nb.words.map((w, i) => ({ t: "word", w, i })), ...nb.phrases.map((p, i) => ({ t: "phrase", p, i })), { t: "rule" }, { t: "page" }];
+}
+const doBox = (html) => `<div class="todo">👉 ${html}</div>`;
+const navBtns = (back, nextLabel, act) => `<div class="pctrl">${back ? `<button class="btn ghost" data-act="${act}-back">‹</button>` : ""}<button class="btn primary grow" data-act="${act}-next">${nextLabel}</button></div>`;
 function viewNotebook(n) {
-  const d = getDay(n);
-  return `${topbar(n, "notebook")}
-    <h2>Перепиши в свой блокнот</h2>
-    <p class="muted small">Пиши от руки — так слова запоминаются в разы лучше. Сначала английское слово, потом перевод и <b>свой пример</b>. Можно рисовать маленькие картинки вместо эмодзи 🙂</p>
-    ${pageHtml(d, { date: fmtDate(today()) })}
-    <details class="card"><summary style="cursor:pointer;font-weight:600">Как оформить страницу</summary>
-      <ul class="small" style="padding-left:18px;margin:10px 0 0">
-        <li>Сверху — дата и номер дня.</li><li>Слова — в столбик, перевод закрой ладонью и проверяй себя.</li>
-        <li>Фразы — подчеркни ключевое слово.</li><li>Правило — нарисуй рамками, как на схеме, разными цветами.</li>
-        <li>Сфотографируй страницу: через месяц будет приятно листать.</li></ul></details>
-    <button class="btn primary block" data-act="nb-done" style="margin-top:6px">Я переписала ✓</button>`;
+  const d = getDay(n), r = rec(n), items = nbItems(d);
+  const k = Math.min(r.nbK || 0, items.length - 1), it = items[k], nb = d.notebook;
+  const cnt = `<p class="label" style="margin-top:4px">Блокнот · ${k + 1} из ${items.length}</p>`;
+  let body = "";
+  if (it.t === "intro") {
+    body = `<div class="card center" style="padding:24px"><div style="font-size:54px">📒</div><h2 style="margin-top:8px">Возьми блокнот и ручку</h2>
+      <p class="muted">Сейчас по одному запишем 8 слов, 3 фразы и одно правило. Каждый раз на экране — что именно записать.</p></div>
+      ${doBox(`Напиши сверху страницы: <b>День ${d.day} · ${esc(fmtDate(today()))}</b>`)}
+      ${navBtns(false, "Написала, начинаем", "nb")}`;
+  } else if (it.t === "word") {
+    const w = it.w;
+    body = `<p class="small muted" style="margin:0 0 8px">Слово ${it.i + 1} из ${nb.words.length}</p>
+      <div class="card center" style="padding:22px 16px">
+        <div style="font-size:60px;line-height:1">${esc(w.emoji)}</div>
+        <div style="font-family:var(--serif);font-size:32px;margin-top:12px">${esc(w.en)} <button class="icon-btn" data-sayw="${esc(w.en)}">🔊</button></div>
+        <div style="font-size:19px;font-weight:600">${esc(w.ru)}</div>
+      </div>
+      <div class="card"><p class="small muted" style="margin:0 0 2px">Из истории</p><p style="font-family:var(--serif);font-size:17px;margin:0">${esc(nm(w.story_ex))} <button class="icon-btn" style="width:30px;height:30px;font-size:14px" data-sayw="${esc(nm(w.story_ex))}">🔊</button></p>
+        <p class="small muted" style="margin:10px 0 2px">Про тебя</p><p style="font-family:var(--serif);font-size:17px;margin:0">${esc(nm(w.my_ex))} <button class="icon-btn" style="width:30px;height:30px;font-size:14px" data-sayw="${esc(nm(w.my_ex))}">🔊</button></p><p class="small muted" style="margin:2px 0 0">${esc(nm(w.my_ex_ru))}</p></div>
+      ${doBox(`Запиши в блокнот: <b>${esc(w.emoji)} ${esc(w.en)} — ${esc(w.ru)}</b><br>и ниже пример «про тебя»`)}
+      ${navBtns(true, "Записала → дальше", "nb")}`;
+  } else if (it.t === "phrase") {
+    const ph = it.p;
+    body = `<p class="small muted" style="margin:0 0 8px">Фраза для жизни ${it.i + 1} из ${nb.phrases.length}</p>
+      <div class="card" style="padding:20px 16px">
+        <div style="font-family:var(--serif);font-size:24px;line-height:1.35">${esc(nm(ph.en))} <button class="icon-btn" data-sayw="${esc(nm(ph.en))}">🔊</button></div>
+        <div style="font-size:17px;margin-top:6px">${esc(nm(ph.ru))}</div>
+        <p class="small muted" style="margin:10px 0 0">Когда говорить: ${esc(ph.when_ru)}</p></div>
+      ${doBox(`Запиши фразу целиком и <b>подчеркни главное слово</b>. Скажи её вслух 2 раза.`)}
+      ${navBtns(true, "Записала → дальше", "nb")}`;
+  } else if (it.t === "rule") {
+    body = `<p class="small muted" style="margin:0 0 8px">Правило дня</p>
+      <div class="page" style="padding-left:40px"><h3>${esc(nb.rule.title_ru)}</h3>
+        <div class="formula">${nb.rule.rows.map((row) => `<div class="fr">${row.map((x) => `<span class="fb">${esc(x)}</span>`).join("")}</div>`).join("")}</div>
+        ${nb.rule.examples.map((e) => `<div class="nb-ex"><span class="hand" style="font-size:18px">${esc(nm(e.en))}</span> <span class="muted">— ${esc(nm(e.ru))}</span></div>`).join("")}
+        <p class="nb-ex" style="margin-top:8px">💡 ${esc(nb.rule.tip_ru)}</p><div class="mistake">${esc(nb.rule.mistake)}</div></div>
+      ${doBox(`Перерисуй схему в блокнот <b>рамками разного цвета</b>, как на картинке. И запиши один пример.`)}
+      ${navBtns(true, "Нарисовала → дальше", "nb")}`;
+  } else {
+    body = `<h2>Сверь со своей страницей</h2><p class="muted small">Так выглядит вся страница дня. Если что-то пропустила — допиши.</p>
+      ${pageHtml(d, { date: fmtDate(today()) })}
+      <p class="small muted center">Совет: сфотографируй страницу — через месяц будет приятно листать.</p>
+      ${navBtns(true, "Готово ✓", "nb")}`;
+  }
+  return `${topbar(n, "notebook")}${cnt}${body}`;
 }
 
-// ---------- Задачи на бумаге ----------
-const KIND_RU = { translate: "Переведи", gap: "Вставь слово", question: "Задай вопрос", order: "Собери предложение", fix: "Исправь ошибку", choose: "Выбери форму", write: "Напиши о себе" };
+// ---------- Задачи на бумаге: по одной ----------
+const KIND_RU = { translate: "Переведи на английский", gap: "Вставь пропущенное", question: "Задай вопрос", order: "Собери предложение из слов", fix: "Найди и исправь ошибку", choose: "Выбери правильную форму", write: "Напиши о себе" };
 function viewTasks(n) {
-  const d = getDay(n), r = rec(n), t = r.tasks;
-  const marked = Object.keys(t.marks).length, ok = Object.values(t.marks).filter(Boolean).length;
+  const d = getDay(n), r = rec(n), t = r.tasks, total = d.tasks.length;
+  const k = t.k || 0;
+  if (k >= total) {
+    const ok = Object.values(t.marks).filter(Boolean).length;
+    return `${topbar(n, "tasks")}<div class="card center" style="padding:24px"><div style="font-size:48px">📝</div>
+      <h2 style="margin-top:6px">${ok} из ${total}</h2>
+      <p class="muted" style="margin:0">${ok >= total - 1 ? "Отлично! Правило в голове." : ok >= total / 2 ? "Хорошо! Ошибки исправь в блокноте другим цветом — так они запоминаются лучше всего." : "Нормально для начала. Перечитай правило в блокноте и исправь ошибки цветной ручкой — завтра будет легче."}</p></div>
+      <button class="btn primary block" data-act="tasks-done">Дальше</button>`;
+  }
+  const x = d.tasks[k];
+  const shown = t.open === k;
   return `${topbar(n, "tasks")}
-    <h2>Реши в блокноте</h2>
-    <p class="muted small">Запиши номер и ответ на бумаге. Когда решишь все ${d.tasks.length}, нажми «Проверить» и отметь, что получилось.</p>
-    <div class="card">${d.tasks.map((x, i) => `<div class="task">
-        <div class="small"><span class="n">${i + 1}.</span><b>${esc(KIND_RU[x.kind] || "")}</b> · <span class="muted">${esc(nm(x.task_ru))}</span></div>
-        <div class="q">${esc(nm(x.q))}</div>
-        ${t.shown ? `<div class="ans"><div style="font-family:var(--serif);font-size:17px"><b>${esc(nm(x.answer))}</b></div>
-            ${x.alt && x.alt.length ? `<div class="small muted">Тоже верно: ${x.alt.map((a) => esc(nm(a))).join(" · ")}</div>` : ""}
-            <div class="small" style="margin-top:4px">${esc(x.note_ru)}</div></div>
-          <div class="marks"><button class="btn sm ${t.marks[i] === true ? "on-ok" : ""}" data-mark="${i}" data-v="1">✓ Верно</button><button class="btn sm ${t.marks[i] === false ? "on-no" : ""}" data-mark="${i}" data-v="0">✗ Ошибка</button></div>` : ""}
-      </div>`).join("")}</div>
-    ${!t.shown ? `<button class="btn primary block" data-act="tasks-show">Я решила — проверить</button>`
-      : marked < d.tasks.length ? `<p class="center muted small">Отметь каждую задачу: ${marked} из ${d.tasks.length}</p>`
-      : `<div class="card center"><h2>${ok} из ${d.tasks.length}</h2><p class="muted" style="margin:0">${ok >= d.tasks.length - 1 ? "Отлично! Правило в голове." : ok >= d.tasks.length / 2 ? "Хорошо. Ошибки исправь в блокноте другим цветом — это лучший способ их запомнить." : "Перечитай правило в блокноте и исправь ошибки цветной ручкой. Завтра будет легче."}</p></div>
-        <button class="btn primary block" data-act="tasks-done">Дальше</button>`}`;
+    <p class="label" style="margin-top:4px">Задача ${k + 1} из ${total}</p>
+    ${k === 0 && !shown ? doBox(`Решай <b>в блокноте</b>: напиши номер задачи и свой ответ. Потом нажми «Показать ответ» и сравни.`) : ""}
+    <div class="card" style="padding:20px 16px">
+      <p style="margin:0;font-weight:650">${esc(KIND_RU[x.kind] || "Задача")}</p>
+      ${x.task_ru ? `<p class="small muted" style="margin:2px 0 0">${esc(nm(x.task_ru))}</p>` : ""}
+      <p style="font-family:var(--serif);font-size:22px;line-height:1.4;margin:12px 0 0">${esc(nm(x.q))}</p>
+    </div>
+    ${shown ? `<div class="ans"><p class="small muted" style="margin:0">Правильный ответ</p>
+        <div style="font-family:var(--serif);font-size:20px"><b>${esc(nm(x.answer))}</b></div>
+        ${x.alt && x.alt.length ? `<div class="small muted">Тоже верно: ${x.alt.map((a2) => esc(nm(a2))).join(" · ")}</div>` : ""}
+        <div class="small" style="margin-top:6px">${esc(x.note_ru)}</div></div>
+      <p class="center small muted" style="margin:12px 0 6px">У тебя так же?</p>
+      <div class="row"><button class="btn grow" data-mark="${k}" data-v="0">✗ Ошибка</button><button class="btn primary grow" data-mark="${k}" data-v="1">✓ Верно</button></div>`
+      : `<button class="btn primary block" data-act="task-open" style="margin-top:6px">Решила — показать ответ</button>`}`;
 }
 
-// ---------- Скажи о себе ----------
-const REC = {}; // записи голоса текущего дня: { i: url }
+// ---------- Скажи о себе: по одной ----------
+const REC = {}; // записи голоса: { i: url }
 let recorder = null, recIdx = null;
 function viewSpeak(n) {
-  const d = getDay(n), r = rec(n);
-  const all = d.speak.every((_, i) => r.speak[i]);
+  const d = getDay(n), r = rec(n), total = d.speak.length;
+  const k = Math.min(r.speakK || 0, total - 1), s = d.speak[k];
+  const showSample = r.sampleK === k;
   return `${topbar(n, "speak")}
-    <h2>Скажи о себе вслух</h2>
-    <p class="muted small">Это твоя настоящая речь: говори про себя, свою работу и планы. Сначала скажи сама, потом сравни с примером. Можно записать себя и послушать.</p>
-    ${d.speak.map((s, i) => `<div class="card">
-      <p style="margin:0 0 6px"><b>${i + 1}. ${esc(nm(s.prompt_ru))}</b></p>
-      <p style="font-family:var(--serif);font-size:19px;margin:0 0 10px">${esc(nm(s.template_en)).replace(/_{2,}/g, '<span style="color:var(--clay)">____</span>')}</p>
-      <div class="row" style="flex-wrap:wrap;gap:8px">
-        <button class="btn sm ${recIdx === i ? "on-no" : ""}" data-rec="${i}">${recIdx === i ? "■ Стоп" : "● Записать себя"}</button>
-        <button class="btn sm ghost" data-sample="${i}">Пример</button>
-        <button class="btn sm ${r.speak[i] ? "primary" : ""}" data-spoke="${i}">${r.speak[i] ? "✓ Сказала" : "Сказала"}</button>
-      </div>
-      ${REC[i] ? `<audio controls src="${REC[i]}" style="width:100%;margin-top:10px"></audio>` : ""}
-      <div id="sample-${i}" style="display:none" class="result"><div style="font-family:var(--serif);font-size:17px"><b>${esc(nm(s.sample_en))}</b></div><div class="small muted">${esc(nm(s.sample_ru))}</div></div>
-    </div>`).join("")}
-    <button class="btn primary block" data-act="speak-done" ${all ? "" : "disabled"}>Готово</button>`;
+    <p class="label" style="margin-top:4px">Скажи о себе · ${k + 1} из ${total}</p>
+    ${doBox(`Скажи <b>вслух</b>, про свою жизнь. Не бойся ошибок — сначала сама, потом посмотри пример.`)}
+    <div class="card" style="padding:20px 16px">
+      <p style="margin:0 0 8px"><b>${esc(nm(s.prompt_ru))}</b></p>
+      <p style="font-family:var(--serif);font-size:21px;line-height:1.4;margin:0">${esc(nm(s.template_en)).replace(/_{2,}/g, '<span style="color:var(--clay)">____</span>')}</p>
+    </div>
+    <div class="row" style="gap:8px;flex-wrap:wrap">
+      <button class="btn grow ${recIdx === k ? "on-no" : ""}" data-rec="${k}">${recIdx === k ? "■ Остановить" : "● Записать себя"}</button>
+      <button class="btn grow" data-sample="${k}">Показать пример</button>
+    </div>
+    ${REC[k] ? `<audio controls src="${REC[k]}" style="width:100%;margin-top:10px"></audio>` : ""}
+    ${showSample ? `<div class="result" style="margin-top:10px"><div style="font-family:var(--serif);font-size:18px"><b>${esc(nm(s.sample_en))}</b></div><div class="small muted">${esc(nm(s.sample_ru))}</div></div>` : ""}
+    ${navBtns(k > 0, k + 1 < total ? "Сказала → дальше" : "Сказала ✓ Готово", "speak")}`;
 }
 
 // ---------- Итог дня ----------
@@ -472,7 +557,7 @@ function bindApp(root) {
     const n = Number(el.dataset.day);
     if (dayStatus(n) === "done") return sheet(`<h2>День ${n}</h2><div class="stack"><button class="btn primary block" id="d1">Пересмотреть сцену</button><button class="btn block" id="d2" style="margin-top:8px">Задачи ещё раз</button><button class="btn block" id="d3" style="margin-top:8px">Страница блокнота</button><button class="btn ghost block" id="d4" style="margin-top:8px">Отмена</button></div>`, (el2) => {
       $("#d1", el2).onclick = () => { closeSheet(); delete S.prog[n]; startStory(n); };
-      $("#d2", el2).onclick = () => { closeSheet(); rec(n).tasks = { marks: {}, done: true, shown: false }; go({ screen: "step", n, step: "tasks" }); };
+      $("#d2", el2).onclick = () => { closeSheet(); rec(n).tasks = { marks: {}, done: true, k: 0, open: null }; go({ screen: "step", n, step: "tasks" }); };
       $("#d3", el2).onclick = () => { closeSheet(); go({ screen: "step", n, step: "notebook" }); };
       $("#d4", el2).onclick = closeSheet;
     });
@@ -484,9 +569,8 @@ function bindApp(root) {
     const b = cur(), i = Number(el.dataset.check);
     if (b.options[i].correct) { P.view.ok = true; render(); } else { P.view.wrong.push(i); render(); const w = (b.wrong || [])[0]; if (w) say(w.who, w.en); }
   }));
-  root.querySelectorAll("[data-mark]").forEach((el) => (el.onclick = () => { rec(V.n).tasks.marks[el.dataset.mark] = el.dataset.v === "1"; save(); const y = window.scrollY; render(); window.scrollTo(0, y); }));
-  root.querySelectorAll("[data-sample]").forEach((el) => (el.onclick = () => { const i = el.dataset.sample; const box = $(`#sample-${i}`); box.style.display = "block"; say("narrator", getDay(V.n).speak[i].sample_en, true); }));
-  root.querySelectorAll("[data-spoke]").forEach((el) => (el.onclick = () => { const r = rec(V.n); r.speak[el.dataset.spoke] = !r.speak[el.dataset.spoke]; if (!r.speak[el.dataset.spoke]) delete r.speak[el.dataset.spoke]; save(); const y = window.scrollY; render(); window.scrollTo(0, y); }));
+  root.querySelectorAll("[data-mark]").forEach((el) => (el.onclick = () => { const t = rec(V.n).tasks; t.marks[el.dataset.mark] = el.dataset.v === "1"; t.k = Number(el.dataset.mark) + 1; t.open = null; save(); go(V); }));
+  root.querySelectorAll("[data-sample]").forEach((el) => (el.onclick = () => { const i = Number(el.dataset.sample); rec(V.n).sampleK = i; save(); const y = window.scrollY; render(); window.scrollTo(0, y); say("narrator", getDay(V.n).speak[i].sample_en, true); }));
   root.querySelectorAll("[data-rec]").forEach((el) => (el.onclick = async () => {
     const i = Number(el.dataset.rec);
     if (recorder && recorder.active) { recorder.stop(); return; }
@@ -510,10 +594,12 @@ const ACT = {
   "recall-no": () => { const w = RC.list[RC.i], s = S.srs[w.en]; s.box = 0; s.due = addDays(today(), 1); RC.i++; RC.shown = false; save(); render(); },
   "recall-end": () => { S.recallDone[today()] = true; markActive(); save(); const n = RC.n; RC = null; if (n) openDay(n); else go({ screen: "home" }); },
   "recall-only": () => startRecall(null),
-  "nb-done": () => completeStep(V.n, "notebook"),
-  "tasks-show": () => { rec(V.n).tasks.shown = true; save(); render(); },
-  "tasks-done": () => { rec(V.n).tasks.done = true; save(); completeStep(V.n, "tasks"); },
-  "speak-done": () => completeStep(V.n, "speak"),
+  "nb-next": () => { const r = rec(V.n), max = nbItems(getDay(V.n)).length; r.nbK = (r.nbK || 0) + 1; save(); if (r.nbK >= max) { r.nbK = 0; return completeStep(V.n, "notebook"); } go(V); },
+  "nb-back": () => { const r = rec(V.n); r.nbK = Math.max(0, (r.nbK || 0) - 1); save(); go(V); },
+  "task-open": () => { const t = rec(V.n).tasks; t.open = t.k || 0; save(); render(); },
+  "tasks-done": () => { const t = rec(V.n).tasks; t.done = true; t.k = 0; save(); completeStep(V.n, "tasks"); },
+  "speak-next": () => { const r = rec(V.n), total = getDay(V.n).speak.length, k = r.speakK || 0; r.speak[k] = true; r.sampleK = null; if (k + 1 >= total) { r.speakK = 0; save(); return completeStep(V.n, "speak"); } r.speakK = k + 1; save(); go(V); },
+  "speak-back": () => { const r = rec(V.n); r.speakK = Math.max(0, (r.speakK || 0) - 1); r.sampleK = null; save(); go(V); },
   talk: () => { copyText(talkPrompt(getDay(V.n))); window.open(CLAUDE_URL, "_blank"); toast("Скопировано — вставь в Claude и включи голос"); },
   early: (el) => { S.early[Number(el.dataset.n)] = true; save(); openDay(Number(el.dataset.n)); },
   book: bookSheet,

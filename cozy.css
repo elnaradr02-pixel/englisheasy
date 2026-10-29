@@ -174,3 +174,7 @@ input[type=text] { width: 100%; padding: 12px 14px; border-radius: 12px; border:
 .toast.hidden { display: none; }
 
 .btn.on-no { background: var(--clay); border-color: var(--clay); color: #fff; }
+
+/* Крупная подсказка «что делать сейчас» */
+.todo { margin: 12px 0; padding: 14px 16px; border-radius: 16px; background: var(--clay-soft); border: 1.5px dashed var(--clay); font-size: 16.5px; line-height: 1.45; }
+.coach { margin: 6px 0 0; padding: 10px 14px; border-radius: 14px; background: var(--sea-soft); color: var(--ink); font-size: 15px; }
